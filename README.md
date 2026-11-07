@@ -11,6 +11,8 @@ Installierte Spiele aus **Steam, Epic, GOG, Ubisoft, Xbox/Game Pass und EA** wer
 
 Reines PowerShell (Windows PowerShell 5.1), keine Installation zusätzlicher Software nötig.
 
+**Sprachen:** English, Deutsch, Español, Français, Italiano, Português, Polski, Türkçe, Русский, 中文（简体）, 日本語, 한국어. Beim ersten Start wird die Windows-Anzeigesprache verwendet; umstellen lässt sie sich jederzeit unten im Fenster.
+
 ## Einrichtung
 
 1. Repository herunterladen oder klonen.
@@ -34,6 +36,11 @@ Ein Hintergrunddienst (`Watcher.ps1`) prüft alle 3 Sekunden, ob eines der ausge
 | `HdrControl.ps1` | HDR über die DisplayConfig-API (`.\HdrControl.ps1 status\|on\|off`) |
 | `AudioControl.ps1` | Standard-Audiogerät über Core Audio (`.\AudioControl.ps1 list`) |
 | `Install.ps1` | Autostart-Aufgabe und Verknüpfung einrichten/entfernen |
+| `Strings.ps1`, `lang/*.json` | Übersetzungen (eine Datei pro Sprache) |
+
+### Weitere Sprache hinzufügen
+
+`lang/en.json` kopieren, nach dem zweistelligen Sprachcode benennen (z. B. `nl.json`), `_name` auf den Namen der Sprache in der Sprache selbst setzen und die Texte übersetzen. Platzhalter wie `{0}` müssen erhalten bleiben. Fehlende Einträge werden automatisch auf Englisch angezeigt. Für Schriften mit eigenen Zeichen kann `_font` eine passende Windows-Schrift angeben.
 
 Lokal erzeugte Dateien (nicht im Repository): `settings.json` (Auswahl und Optionen), `games.txt` (überwachte Prozesse), `watcher.log` (Protokoll).
 

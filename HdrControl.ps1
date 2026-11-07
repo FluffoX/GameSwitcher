@@ -65,11 +65,11 @@ public static class HdrNative {
     public static List<HdrDisplay> GetDisplays() {
         uint numPath, numMode;
         int err = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out numPath, out numMode);
-        if (err != 0) throw new Exception("GetDisplayConfigBufferSizes fehlgeschlagen: " + err);
+        if (err != 0) throw new Exception("GetDisplayConfigBufferSizes failed: " + err);
         PATH_INFO[] paths = new PATH_INFO[numPath];
         MODE_INFO[] modes = new MODE_INFO[numMode];
         err = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref numPath, paths, ref numMode, modes, IntPtr.Zero);
-        if (err != 0) throw new Exception("QueryDisplayConfig fehlgeschlagen: " + err);
+        if (err != 0) throw new Exception("QueryDisplayConfig failed: " + err);
 
         List<HdrDisplay> result = new List<HdrDisplay>();
         HashSet<string> seen = new HashSet<string>();
@@ -122,7 +122,7 @@ function Get-HdrDisplays {
 function Set-Hdr {
     param([HdrDisplay]$Display, [bool]$Enable)
     $err = [HdrNative]::SetHdr($Display, $Enable)
-    if ($err -ne 0) { throw "HDR konnte fuer '$($Display.Name)' nicht geschaltet werden (Fehler $err)." }
+    if ($err -ne 0) { throw "Could not switch HDR for '$($Display.Name)' (error $err)." }
 }
 
 if ($Action) {

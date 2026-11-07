@@ -12,7 +12,7 @@ if ($Uninstall) {
     Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
         Where-Object { $_.CommandLine -like '*Watcher.ps1*' } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-    Write-Host "'$taskName' entfernt."
+    Write-Host "'$taskName' removed."
     return
 }
 
@@ -26,7 +26,7 @@ $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings `
-    -Principal $principal -Description 'Wendet die GameSwitcher-Einstellungen an, wenn ein ausgewaehltes Spiel laeuft.' -Force | Out-Null
+    -Principal $principal -Description 'Applies the GameSwitcher actions while a selected game is running.' -Force | Out-Null
 if (-not $NoStart) { Start-ScheduledTask -TaskName $taskName }
 
 # Shortcut for the GUI (also starts without a console window)
@@ -40,4 +40,4 @@ if (-not (Test-Path $lnkPath)) {
     $lnk.Description = 'GameSwitcher'
     $lnk.Save()
 }
-Write-Host "'$taskName' eingerichtet."
+Write-Host "'$taskName' installed."

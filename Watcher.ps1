@@ -22,7 +22,8 @@ if ((Test-Path $logFile) -and (Get-Item $logFile).Length -gt 256KB) {
     Set-Content $logFile $tail -Encoding UTF8
 }
 
-Write-Log 'Watcher gestartet.'
+Initialize-Language (Get-ConfiguredLanguage)
+Write-Log (T 'log.watcherStarted')
 $active = $false
 $idleChecks = 0
 
@@ -41,14 +42,16 @@ while ($true) {
             $idleChecks = 0
             if (-not $active) {
                 $active = $true
-                Write-Log "$($running.ProcessName) gestartet"
+                Initialize-Language (Get-ConfiguredLanguage)
+                Write-Log (T 'log.gameStarted' $running.ProcessName)
                 Invoke-GameStart
             }
         }
         elseif ($active) {
             $idleChecks++
             if ($idleChecks -ge $offDelayChecks) {
-                Write-Log 'Kein Spiel mehr aktiv'
+                Initialize-Language (Get-ConfiguredLanguage)
+                Write-Log (T 'log.noGame')
                 Invoke-GameEnd
                 $active = $false
                 $idleChecks = 0
@@ -56,7 +59,7 @@ while ($true) {
         }
     }
     catch {
-        Write-Log "Fehler: $($_.Exception.Message)"
+        Write-Log (T 'log.error' $_.Exception.Message)
     }
     Start-Sleep -Seconds $pollSeconds
 }

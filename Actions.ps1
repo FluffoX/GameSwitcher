@@ -1,6 +1,7 @@
 ﻿# Actions on game start and exit (HDR, audio output, closing/starting programs).
 # Dot-sourced by Watcher.ps1; GameSwitcher.ps1 uses Get-ActionSettings for the defaults.
 # Expects a Write-Log function in the calling script.
+. (Join-Path $PSScriptRoot 'Strings.ps1')
 . (Join-Path $PSScriptRoot 'HdrControl.ps1')
 . (Join-Path $PSScriptRoot 'AudioControl.ps1')
 
@@ -44,6 +45,7 @@ function Get-AppProcesses([string]$Path) {
 $script:changes = $null
 
 function Invoke-GameStart {
+    Initialize-Language (Get-ConfiguredLanguage)
     $cfg = Get-ActionSettings
     $script:changes = @{ HdrDisplays = @(); Audio = $null; ClosedApps = @(); StartedApps = @() }
 
@@ -52,9 +54,9 @@ function Invoke-GameStart {
             foreach ($d in Get-HdrDisplays | Where-Object { $_.HdrSupported -and -not $_.HdrEnabled }) {
                 Set-Hdr $d $true
                 $script:changes.HdrDisplays += $d.Key
-                Write-Log "  HDR an auf $($d.Name)"
+                Write-Log (T 'log.hdrOn' $d.Name)
             }
-        } catch { Write-Log "  Fehler HDR: $($_.Exception.Message)" }
+        } catch { Write-Log (T 'log.hdrError' $_.Exception.Message) }
     }
 
     if ($cfg.Audio.Enabled -and $cfg.Audio.DeviceId) {
@@ -62,14 +64,14 @@ function Invoke-GameStart {
             $previous = [AudioNative]::GetDefaultOutputId()
             if ($previous -ne $cfg.Audio.DeviceId) {
                 if (-not ([AudioNative]::GetOutputDevices() | Where-Object Id -eq $cfg.Audio.DeviceId)) {
-                    throw "Geraet '$($cfg.Audio.DeviceName)' ist nicht verbunden."
+                    throw (T 'log.audioMissing' $cfg.Audio.DeviceName)
                 }
                 $previousName = [AudioNative]::GetDefaultOutputName()
                 [AudioNative]::SetDefaultOutput($cfg.Audio.DeviceId)
                 $script:changes.Audio = @{ PreviousId = $previous; PreviousName = $previousName; SetId = $cfg.Audio.DeviceId }
-                Write-Log "  Audio -> $($cfg.Audio.DeviceName)"
+                Write-Log (T 'log.audioSwitched' $cfg.Audio.DeviceName)
             }
-        } catch { Write-Log "  Fehler Audio: $($_.Exception.Message)" }
+        } catch { Write-Log (T 'log.audioError' $_.Exception.Message) }
     }
 
     if ($cfg.CloseApps.Enabled) {
@@ -81,9 +83,9 @@ function Invoke-GameStart {
                     if (-not $path) { $path = $app }
                     if ($script:changes.ClosedApps -notcontains $path) {
                         $script:changes.ClosedApps += $path
-                        Write-Log "  Beendet: $([IO.Path]::GetFileName($path))"
+                        Write-Log (T 'log.closed' ([IO.Path]::GetFileName($path)))
                     }
-                } catch { Write-Log "  Fehler beim Beenden von $($p.ProcessName): $($_.Exception.Message)" }
+                } catch { Write-Log (T 'log.closeError' $p.ProcessName $_.Exception.Message) }
             }
         }
     }
@@ -94,13 +96,14 @@ function Invoke-GameStart {
             try {
                 Start-Process -FilePath $app -WorkingDirectory (Split-Path $app)
                 $script:changes.StartedApps += $app
-                Write-Log "  Gestartet: $([IO.Path]::GetFileName($app))"
-            } catch { Write-Log "  Fehler beim Starten von $app : $($_.Exception.Message)" }
+                Write-Log (T 'log.started' ([IO.Path]::GetFileName($app)))
+            } catch { Write-Log (T 'log.startError' $app $_.Exception.Message) }
         }
     }
 }
 
 function Invoke-GameEnd {
+    Initialize-Language (Get-ConfiguredLanguage)
     $cfg = Get-ActionSettings
     $c = $script:changes
     if (-not $c) { return }
@@ -109,11 +112,11 @@ function Invoke-GameEnd {
         if ($cfg.StartApps.Revert) {
             foreach ($app in $c.StartedApps) {
                 foreach ($p in @(Get-AppProcesses $app)) {
-                    try { Stop-App $p } catch { Write-Log "  Fehler beim Beenden von $($p.ProcessName): $($_.Exception.Message)" }
+                    try { Stop-App $p } catch { Write-Log (T 'log.closeError' $p.ProcessName $_.Exception.Message) }
                 }
-                Write-Log "  Wieder beendet: $([IO.Path]::GetFileName($app))"
+                Write-Log (T 'log.closedAgain' ([IO.Path]::GetFileName($app)))
             }
-        } else { Write-Log '  Gestartete Programme laufen weiter (Einstellung)' }
+        } else { Write-Log (T 'log.startedKept') }
     }
 
     if ($c.ClosedApps) {
@@ -122,10 +125,10 @@ function Invoke-GameEnd {
                 if (Get-AppProcesses $app) { continue }
                 try {
                     Start-Process -FilePath $app -WorkingDirectory (Split-Path $app)
-                    Write-Log "  Wieder gestartet: $([IO.Path]::GetFileName($app))"
-                } catch { Write-Log "  Fehler beim Starten von $app : $($_.Exception.Message)" }
+                    Write-Log (T 'log.restarted' ([IO.Path]::GetFileName($app)))
+                } catch { Write-Log (T 'log.startError' $app $_.Exception.Message) }
             }
-        } else { Write-Log '  Beendete Programme bleiben aus (Einstellung)' }
+        } else { Write-Log (T 'log.closedKept') }
     }
 
     if ($c.Audio) {
@@ -135,10 +138,10 @@ function Invoke-GameEnd {
                 if ([AudioNative]::GetDefaultOutputId() -eq $c.Audio.SetId -and
                     ([AudioNative]::GetOutputDevices() | Where-Object Id -eq $c.Audio.PreviousId)) {
                     [AudioNative]::SetDefaultOutput($c.Audio.PreviousId)
-                    Write-Log "  Audio -> $($c.Audio.PreviousName)"
+                    Write-Log (T 'log.audioSwitched' $c.Audio.PreviousName)
                 }
-            } catch { Write-Log "  Fehler Audio: $($_.Exception.Message)" }
-        } else { Write-Log '  Audioausgabe bleibt (Einstellung)' }
+            } catch { Write-Log (T 'log.audioError' $_.Exception.Message) }
+        } else { Write-Log (T 'log.audioKept') }
     }
 
     if ($c.HdrDisplays) {
@@ -146,10 +149,10 @@ function Invoke-GameEnd {
             try {
                 foreach ($d in Get-HdrDisplays | Where-Object { $c.HdrDisplays -contains $_.Key -and $_.HdrEnabled }) {
                     Set-Hdr $d $false
-                    Write-Log "  HDR aus auf $($d.Name)"
+                    Write-Log (T 'log.hdrOff' $d.Name)
                 }
-            } catch { Write-Log "  Fehler HDR: $($_.Exception.Message)" }
-        } else { Write-Log '  HDR bleibt an (Einstellung)' }
+            } catch { Write-Log (T 'log.hdrError' $_.Exception.Message) }
+        } else { Write-Log (T 'log.hdrKept') }
     }
 
     $script:changes = $null

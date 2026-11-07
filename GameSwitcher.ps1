@@ -40,7 +40,7 @@ function New-Game([string]$Name, [string]$Source, [string]$Path, [string]$Origin
 function New-ExeGame([string]$Exe) {
     $name = [Diagnostics.FileVersionInfo]::GetVersionInfo($Exe).ProductName
     if (-not $name) { $name = [IO.Path]::GetFileNameWithoutExtension($Exe) }
-    [pscustomobject]@{ Name = $name.Trim(); Source = 'Eigene'; Path = $Exe; Key = $Exe.ToLower(); Exes = @([IO.Path]::GetFileName($Exe)); Origin = $Exe }
+    [pscustomobject]@{ Name = $name.Trim(); Source = 'Custom'; Path = $Exe; Key = $Exe.ToLower(); Exes = @([IO.Path]::GetFileName($Exe)); Origin = $Exe }
 }
 
 function Get-SteamGames {
@@ -120,6 +120,7 @@ $games = @()
 
 . (Join-Path $root 'Actions.ps1')
 $actions = Get-ActionSettings
+Initialize-Language (Get-ConfiguredLanguage)
 
 if (Test-Path $settingsFile) {
     try {
@@ -131,7 +132,8 @@ if (Test-Path $settingsFile) {
 }
 
 function Save-All {
-    @{ Selected = @($selected.Values); CustomFolders = @($customFolders); CustomExes = @($customExes); Actions = $script:actions } |
+    @{ Selected = @($selected.Values); CustomFolders = @($customFolders); CustomExes = @($customExes)
+       Actions = $script:actions; Language = $script:language } |
         ConvertTo-Json -Depth 6 | Set-Content $settingsFile -Encoding UTF8
     $lines = @('# Managed by GameSwitcher.ps1 - manual changes will be overwritten.')
     foreach ($g in $selected.Values | Sort-Object Name) { $lines += "# $($g.Name)"; $lines += $g.Exes }
@@ -141,7 +143,7 @@ function Save-All {
 function Find-AllGames {
     $all = @(Get-SteamGames) + @(Get-EpicGames) + @(Get-GogGames) + @(Get-UbisoftGames) + @(Get-XboxGames) +
         @(Get-FolderGames (Join-Path $env:ProgramFiles 'EA Games') 'EA')
-    foreach ($f in $customFolders) { $all += @(Get-FolderGames $f 'Ordner') }
+    foreach ($f in $customFolders) { $all += @(Get-FolderGames $f 'Folder') }
     foreach ($e in $customExes) { if (Test-Path $e) { $all += New-ExeGame $e } }
 
     $found = [ordered]@{}
@@ -150,7 +152,7 @@ function Find-AllGames {
         if ($found.Contains($s.Key)) {
             $s.Exes = $found[$s.Key].Exes   # refresh the executable list after game updates
         } else {
-            $found[$s.Key] = [pscustomobject]@{ Name = $s.Name; Source = 'nicht gefunden'; Path = ''; Key = $s.Key; Exes = @($s.Exes); Origin = $null }
+            $found[$s.Key] = [pscustomobject]@{ Name = $s.Name; Source = 'Missing'; Path = ''; Key = $s.Key; Exes = @($s.Exes); Origin = $null }
         }
     }
     $script:games = @($found.Values | Sort-Object Name)
@@ -160,35 +162,38 @@ function Find-AllGames {
 
 if ($ScanOnly) {
     Find-AllGames
-    $games | Format-Table Name, Source, @{ n = 'Prozesse'; e = { $_.Exes -join ', ' } } -AutoSize -Wrap
+    $games | Format-Table Name, Source, @{ n = 'Processes'; e = { $_.Exes -join ', ' } } -AutoSize -Wrap
     return
 }
 
 #region Window
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-Add-Type -TypeDefinition 'public class AppEntry { public string Path; public string Name; public override string ToString() { return Name; } }'
+Add-Type -TypeDefinition @'
+public class AppEntry { public string Path; public string Name; public override string ToString() { return Name; } }
+public class LangItem { public string Code; public string Name; public override string ToString() { return Name; } }
+'@
 Add-Type -Name Dpi -Namespace Native -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();'
 [void][Native.Dpi]::SetProcessDPIAware()
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 $colorOn = [System.Drawing.Color]::FromArgb(0, 150, 70)
 $colorOff = [System.Drawing.Color]::Gray
-$removableSources = 'Eigene', 'Ordner', 'nicht gefunden'
+$removableSources = 'Custom', 'Folder', 'Missing'
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'GameSwitcher'
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $g = $form.CreateGraphics(); $scale = $g.DpiX / 96; $g.Dispose()
-$form.ClientSize = New-Object System.Drawing.Size([int](1200 * $scale), [int](680 * $scale))
+$form.ClientSize = New-Object System.Drawing.Size([int](1240 * $scale), [int](700 * $scale))
 $form.StartPosition = 'CenterScreen'
 
 $list = New-Object System.Windows.Forms.ListView
 $list.Dock = 'Fill'; $list.View = 'Details'; $list.CheckBoxes = $true; $list.FullRowSelect = $true
 $list.HideSelection = $false; $list.MultiSelect = $false; $list.ShowItemToolTips = $true
-[void]$list.Columns.Add('Spiel', [int](320 * $scale))
-[void]$list.Columns.Add('Quelle', [int](100 * $scale))
-[void]$list.Columns.Add('Prozesse', [int](360 * $scale))
+[void]$list.Columns.Add('', [int](320 * $scale))
+[void]$list.Columns.Add('', [int](110 * $scale))
+[void]$list.Columns.Add('', [int](340 * $scale))
 
 # Top: current HDR state
 $hdrPanel = New-Object System.Windows.Forms.FlowLayoutPanel
@@ -197,7 +202,7 @@ $lblHdr = New-Object System.Windows.Forms.Label
 $lblHdr.AutoSize = $true; $lblHdr.Margin = '3,4,12,3'
 $lblHdr.Font = New-Object System.Drawing.Font('Segoe UI', 11, [System.Drawing.FontStyle]::Bold)
 $btnToggleHdr = New-Object System.Windows.Forms.Button
-$btnToggleHdr.Text = 'HDR einschalten'; $btnToggleHdr.AutoSize = $true
+$btnToggleHdr.AutoSize = $true
 $lblRunning = New-Object System.Windows.Forms.Label
 $lblRunning.AutoSize = $true; $lblRunning.Margin = '18,8,3,3'
 $lblAudio = New-Object System.Windows.Forms.Label
@@ -207,91 +212,96 @@ $hdrPanel.Controls.AddRange(@($lblHdr, $btnToggleHdr, $lblRunning, $lblAudio))
 $top = New-Object System.Windows.Forms.FlowLayoutPanel
 $top.Dock = 'Top'; $top.AutoSize = $true; $top.Padding = '6,2,6,2'
 $lblSearch = New-Object System.Windows.Forms.Label
-$lblSearch.Text = 'Suche:'; $lblSearch.AutoSize = $true; $lblSearch.Margin = '3,7,3,3'
+$lblSearch.AutoSize = $true; $lblSearch.Margin = '3,7,3,3'
 $txtSearch = New-Object System.Windows.Forms.TextBox
 $txtSearch.Width = [int](260 * $scale)
 $chkOnlySelected = New-Object System.Windows.Forms.CheckBox
-$chkOnlySelected.Text = 'Nur ausgewählte'; $chkOnlySelected.AutoSize = $true; $chkOnlySelected.Margin = '12,5,3,3'
+$chkOnlySelected.AutoSize = $true; $chkOnlySelected.Margin = '12,5,3,3'
 $btnRescan = New-Object System.Windows.Forms.Button
-$btnRescan.Text = 'Neu scannen'; $btnRescan.AutoSize = $true
+$btnRescan.AutoSize = $true
 $top.Controls.AddRange(@($lblSearch, $txtSearch, $chkOnlySelected, $btnRescan))
 
 # Bottom: edit the list
 $bottom = New-Object System.Windows.Forms.FlowLayoutPanel
 $bottom.Dock = 'Bottom'; $bottom.AutoSize = $true; $bottom.Padding = '6,4,6,0'
 $btnAddExe = New-Object System.Windows.Forms.Button
-$btnAddExe.Text = 'Spiel (.exe) hinzufügen…'; $btnAddExe.AutoSize = $true
+$btnAddExe.AutoSize = $true
 $btnAddFolder = New-Object System.Windows.Forms.Button
-$btnAddFolder.Text = 'Spieleordner hinzufügen…'; $btnAddFolder.AutoSize = $true
+$btnAddFolder.AutoSize = $true
 $btnRemove = New-Object System.Windows.Forms.Button
-$btnRemove.Text = 'Entfernen'; $btnRemove.AutoSize = $true; $btnRemove.Enabled = $false
+$btnRemove.AutoSize = $true; $btnRemove.Enabled = $false
 $btnLog = New-Object System.Windows.Forms.Button
-$btnLog.Text = 'Protokoll anzeigen'; $btnLog.AutoSize = $true; $btnLog.Margin = '24,3,3,3'
+$btnLog.AutoSize = $true; $btnLog.Margin = '24,3,3,3'
 $bottom.Controls.AddRange(@($btnAddExe, $btnAddFolder, $btnRemove, $btnLog))
 
-# Bottom: options and service
+# Bottom: options, service and language
 $options = New-Object System.Windows.Forms.FlowLayoutPanel
 $options.Dock = 'Bottom'; $options.AutoSize = $true; $options.Padding = '6,0,6,6'
 $chkAutostart = New-Object System.Windows.Forms.CheckBox
-$chkAutostart.Text = 'Mit Windows starten (Autostart)'; $chkAutostart.AutoSize = $true; $chkAutostart.Margin = '3,7,12,3'
+$chkAutostart.AutoSize = $true; $chkAutostart.Margin = '3,7,12,3'
 $btnService = New-Object System.Windows.Forms.Button
-$btnService.Text = 'Dienst starten'; $btnService.AutoSize = $true
-$options.Controls.AddRange(@($chkAutostart, $btnService))
+$btnService.AutoSize = $true
+$lblLanguage = New-Object System.Windows.Forms.Label
+$lblLanguage.AutoSize = $true; $lblLanguage.Margin = '36,8,3,3'
+$cmbLanguage = New-Object System.Windows.Forms.ComboBox
+$cmbLanguage.DropDownStyle = 'DropDownList'; $cmbLanguage.Width = [int](170 * $scale); $cmbLanguage.Margin = '3,5,3,3'
+$options.Controls.AddRange(@($chkAutostart, $btnService, $lblLanguage, $cmbLanguage))
 
 # Right: actions on game start
 $actionsPanel = New-Object System.Windows.Forms.FlowLayoutPanel
-$actionsPanel.Dock = 'Right'; $actionsPanel.Width = [int](380 * $scale)
+$actionsPanel.Dock = 'Right'; $actionsPanel.Width = [int](400 * $scale)
 $actionsPanel.FlowDirection = 'TopDown'; $actionsPanel.WrapContents = $false; $actionsPanel.AutoScroll = $true
 $actionsPanel.Padding = '10,4,10,4'
-$innerWidth = [int](330 * $scale)
+$innerWidth = [int](350 * $scale)
 
-function New-Check([string]$Text, [int]$Indent = 0, [int]$Top = 2) {
+function New-Check([int]$Indent = 0, [int]$Top = 2) {
     $c = New-Object System.Windows.Forms.CheckBox
-    $c.Text = $Text; $c.AutoSize = $true; $c.Margin = "$(3 + $Indent),$Top,3,1"
+    $c.AutoSize = $true; $c.Margin = "$(3 + $Indent),$Top,3,1"
+    $c.MaximumSize = New-Object System.Drawing.Size(($innerWidth - $Indent), 0)
     $c
 }
 
 function New-AppList {
     $l = New-Object System.Windows.Forms.ListBox
-    $l.Width = $innerWidth - [int](20 * $scale); $l.Height = [int](78 * $scale)
+    $l.Width = $innerWidth - [int](20 * $scale); $l.Height = [int](64 * $scale)
     $l.Margin = '23,3,3,2'; $l.HorizontalScrollbar = $true
     $l
 }
 
-function New-ButtonRow([string[]]$Texts) {
+function New-ButtonRow {
     $row = New-Object System.Windows.Forms.FlowLayoutPanel
     $row.AutoSize = $true; $row.WrapContents = $false; $row.Margin = '20,0,0,0'
-    foreach ($t in $Texts) {
+    foreach ($i in 1..2) {
         $b = New-Object System.Windows.Forms.Button
-        $b.Text = $t; $b.AutoSize = $true
+        $b.AutoSize = $true
         [void]$row.Controls.Add($b)
     }
     $row
 }
 
 $lblActions = New-Object System.Windows.Forms.Label
-$lblActions.Text = 'Beim Spielstart'; $lblActions.AutoSize = $true; $lblActions.Margin = '3,6,3,4'
+$lblActions.AutoSize = $true; $lblActions.Margin = '3,6,3,4'
 $lblActions.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
 
-$chkHdr = New-Check 'HDR einschalten' 0 6
-$chkHdrRevert = New-Check 'nach Spielende wieder ausschalten' 20
+$chkHdr = New-Check 0 6
+$chkHdrRevert = New-Check 20
 
-$chkAudio = New-Check 'Audioausgabe wechseln auf:' 0 16
+$chkAudio = New-Check 0 16
 $cmbAudio = New-Object System.Windows.Forms.ComboBox
 $cmbAudio.DropDownStyle = 'DropDownList'; $cmbAudio.Width = $innerWidth - [int](20 * $scale); $cmbAudio.Margin = '23,3,3,2'
-$chkAudioRevert = New-Check 'nach Spielende vorheriges Gerät wiederherstellen' 20
+$chkAudioRevert = New-Check 20
 
-$chkClose = New-Check 'Programme beenden:' 0 16
+$chkClose = New-Check 0 16
 $lstClose = New-AppList
-$closeRow = New-ButtonRow 'Hinzufügen…', 'Entfernen'
+$closeRow = New-ButtonRow
 $btnCloseAdd, $btnCloseRemove = $closeRow.Controls[0], $closeRow.Controls[1]
-$chkCloseRevert = New-Check 'nach Spielende wieder starten' 20
+$chkCloseRevert = New-Check 20
 
-$chkStart = New-Check 'Programme starten:' 0 16
+$chkStart = New-Check 0 16
 $lstStart = New-AppList
-$startRow = New-ButtonRow 'Hinzufügen…', 'Entfernen'
+$startRow = New-ButtonRow
 $btnStartAdd, $btnStartRemove = $startRow.Controls[0], $startRow.Controls[1]
-$chkStartRevert = New-Check 'nach Spielende wieder beenden' 20
+$chkStartRevert = New-Check 20
 
 $actionsPanel.Controls.AddRange(@(
     $lblActions,
@@ -302,8 +312,8 @@ $actionsPanel.Controls.AddRange(@(
 
 # Menu for adding programs
 $addMenu = New-Object System.Windows.Forms.ContextMenuStrip
-$miAddRunning = $addMenu.Items.Add('Aus laufenden Programmen…')
-$miAddFile = $addMenu.Items.Add('Programmdatei auswählen…')
+$miAddRunning = $addMenu.Items.Add('')
+$miAddFile = $addMenu.Items.Add('')
 $script:addTarget = $null
 
 $statusBar = New-Object System.Windows.Forms.StatusStrip
@@ -312,53 +322,114 @@ $status = New-Object System.Windows.Forms.ToolStripStatusLabel
 
 # Context menu of the list
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$miOpen = $menu.Items.Add('Speicherort öffnen')
-$miRemove = $menu.Items.Add('Aus Liste entfernen')
+$miOpen = $menu.Items.Add('')
+$miRemove = $menu.Items.Add('')
 $list.ContextMenuStrip = $menu
 
 # Order matters: add the Fill control first and the outermost bars last
 $form.Controls.AddRange(@($list, $actionsPanel, $top, $hdrPanel, $bottom, $options, $statusBar))
 
+# Let buttons shrink again when switching to a language with shorter texts
+function Set-ButtonSizing($Parent) {
+    foreach ($c in $Parent.Controls) {
+        if ($c -is [System.Windows.Forms.Button]) {
+            $c.AutoSizeMode = 'GrowAndShrink'
+            $c.MinimumSize = New-Object System.Drawing.Size([int](80 * $scale), [int](26 * $scale))
+            $c.Padding = '6,0,6,0'
+        }
+        Set-ButtonSizing $c
+    }
+}
+Set-ButtonSizing $form
+
 $script:loading = $false
-$script:serviceText = ''
+$script:serviceRunning = $false
 $script:hdrDisplays = @()
 $script:tick = 0
+
+# Static texts in the current language; dynamic texts are set by the Update-* functions
+function Set-UiTexts {
+    # Languages with their own script (e.g. CJK) can name a matching Windows font via "_font"
+    $fontName = $script:strings['_font']
+    if (-not $fontName) { $fontName = 'Segoe UI' }
+    $form.Font = New-Object System.Drawing.Font($fontName, 9)
+    $lblHdr.Font = New-Object System.Drawing.Font($fontName, 11, [System.Drawing.FontStyle]::Bold)
+    $lblActions.Font = New-Object System.Drawing.Font($fontName, 10, [System.Drawing.FontStyle]::Bold)
+
+    $list.Columns[0].Text = T 'col.game'
+    $list.Columns[1].Text = T 'col.source'
+    $list.Columns[2].Text = T 'col.processes'
+    $lblSearch.Text = T 'search.label'
+    $chkOnlySelected.Text = T 'search.onlySelected'
+    $btnRescan.Text = T 'btn.rescan'
+    $btnAddExe.Text = T 'btn.addExe'
+    $btnAddFolder.Text = T 'btn.addFolder'
+    $btnRemove.Text = T 'btn.remove'
+    $btnLog.Text = T 'btn.log'
+    $chkAutostart.Text = T 'opt.autostart'
+    $lblLanguage.Text = T 'language.label'
+    $lblActions.Text = T 'actions.title'
+    $chkHdr.Text = T 'act.hdr'
+    $chkHdrRevert.Text = T 'act.hdrRevert'
+    $chkAudio.Text = T 'act.audio'
+    $chkAudioRevert.Text = T 'act.audioRevert'
+    $chkClose.Text = T 'act.close'
+    $chkCloseRevert.Text = T 'act.closeRevert'
+    $chkStart.Text = T 'act.start'
+    $chkStartRevert.Text = T 'act.startRevert'
+    foreach ($b in $btnCloseAdd, $btnStartAdd) { $b.Text = T 'btn.add' }
+    foreach ($b in $btnCloseRemove, $btnStartRemove) { $b.Text = T 'btn.remove' }
+    $miAddRunning.Text = T 'menu.addRunning'
+    $miAddFile.Text = T 'menu.addFile'
+    $miOpen.Text = T 'menu.openLocation'
+    $miRemove.Text = T 'menu.removeFromList'
+}
+
+function Get-SourceText([string]$Source) {
+    switch ($Source) {
+        'Custom' { T 'source.custom' }
+        'Folder' { T 'source.folder' }
+        'Missing' { T 'source.missing' }
+        default { $Source }
+    }
+}
 
 function Get-WatcherProcesses {
     Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*Watcher.ps1*' }
 }
 
 function Update-ServiceState {
-    $running = [bool](Get-WatcherProcesses)
-    $script:serviceText = if ($running) { 'läuft' } else { 'gestoppt' }
-    $btnService.Text = if ($running) { 'Dienst beenden' } else { 'Dienst starten' }
+    $script:serviceRunning = [bool](Get-WatcherProcesses)
+    $btnService.Text = if ($script:serviceRunning) { T 'btn.serviceStop' } else { T 'btn.serviceStart' }
     $script:loading = $true
     $chkAutostart.Checked = [bool](Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)
     $script:loading = $false
 }
 
 function Update-Status {
-    $status.Text = "$($selected.Count) Spiel(e) ausgewählt   ·   $($games.Count) gefunden   ·   Dienst: $script:serviceText"
+    $service = if ($script:serviceRunning) { T 'service.running' } else { T 'service.stopped' }
+    $status.Text = T 'status.summary' $selected.Count $games.Count $service
 }
 
 function Update-Hdr {
     try { $script:hdrDisplays = @(Get-HdrDisplays | Where-Object HdrSupported) } catch { $script:hdrDisplays = @() }
     $displays = $script:hdrDisplays
     if ($displays.Count -eq 0) {
-        $lblHdr.Text = '● Kein HDR-fähiger Monitor'
+        $lblHdr.Text = '● ' + (T 'hdr.none')
         $lblHdr.ForeColor = $colorOff
+        $btnToggleHdr.Text = T 'btn.hdrOn'
         $btnToggleHdr.Enabled = $false
         return
     }
     $on = @($displays | Where-Object HdrEnabled)
-    $state = if ($on.Count -eq $displays.Count) { 'HDR an' } elseif ($on.Count) { 'HDR teilweise an' } else { 'HDR aus' }
+    $state = if ($on.Count -eq $displays.Count) { T 'hdr.on' } elseif ($on.Count) { T 'hdr.partial' } else { T 'hdr.off' }
     $names = if ($displays.Count -eq 1) { $displays[0].Name } else {
-        ($displays | ForEach-Object { "$($_.Name): $(if ($_.HdrEnabled) { 'an' } else { 'aus' })" }) -join ', '
+        ($displays | ForEach-Object { "$($_.Name): $(if ($_.HdrEnabled) { T 'hdr.displayOn' } else { T 'hdr.displayOff' })" }) -join ', '
     }
     $lblHdr.Text = "● $state  –  $names"
     $lblHdr.ForeColor = if ($on.Count) { $colorOn } else { $colorOff }
     $btnToggleHdr.Enabled = $true
-    $btnToggleHdr.Text = if ($on.Count) { 'HDR ausschalten' } else { 'HDR einschalten' }
+    $btnToggleHdr.Text = if ($on.Count) { T 'btn.hdrOff' } else { T 'btn.hdrOn' }
 }
 
 function Update-Running {
@@ -369,12 +440,12 @@ function Update-Running {
         $names = @(Get-Process -Name @($map.Keys) -ErrorAction SilentlyContinue |
             ForEach-Object { $map[$_.ProcessName.ToLower()] } | Sort-Object -Unique)
     }
-    $lblRunning.Text = if ($names) { "Läuft gerade: $($names -join ', ')" } else { 'Kein ausgewähltes Spiel aktiv' }
+    $lblRunning.Text = if ($names) { T 'running.games' ($names -join ', ') } else { T 'running.none' }
 }
 
 function Update-AudioLabel {
     try { $name = [AudioNative]::GetDefaultOutputName() } catch { $name = $null }
-    $lblAudio.Text = if ($name) { "Audio: $name" } else { 'Audio: –' }
+    $lblAudio.Text = T 'audio.current' $(if ($name) { $name } else { '–' })
 }
 
 #region Actions
@@ -400,7 +471,8 @@ function Update-AudioDeviceList {
         $match = $devices | Where-Object Id -eq $id | Select-Object -First 1
         if (-not $match) {
             $match = New-Object AudioDevice
-            $match.Id = $id; $match.Name = "$($actions.Audio.DeviceName) (nicht verbunden)"
+            $match.Id = $id; $match.Disconnected = $true
+            $match.Name = T 'audio.disconnected' $actions.Audio.DeviceName
             [void]$cmbAudio.Items.Add($match)
         }
         $cmbAudio.SelectedItem = $match
@@ -436,7 +508,7 @@ function Save-Actions {
     $dev = $cmbAudio.SelectedItem
     if ($dev) {
         $actions.Audio.DeviceId = $dev.Id
-        if ($dev.Name -notlike '*(nicht verbunden)') { $actions.Audio.DeviceName = $dev.Name }
+        if (-not $dev.Disconnected) { $actions.Audio.DeviceName = $dev.Name }
     }
     $actions.CloseApps.Enabled = $chkClose.Checked; $actions.CloseApps.Revert = $chkCloseRevert.Checked
     $actions.CloseApps.Apps = @($lstClose.Items | ForEach-Object { $_.Path })
@@ -455,14 +527,14 @@ function Add-AppToList([System.Windows.Forms.ListBox]$ListBox, [string]$Path) {
 
 function Show-ProcessPicker {
     $dlg = New-Object System.Windows.Forms.Form
-    $dlg.Text = 'Laufendes Programm auswählen'; $dlg.Font = $form.Font; $dlg.StartPosition = 'CenterParent'
+    $dlg.Text = T 'picker.title'; $dlg.Font = $form.Font; $dlg.StartPosition = 'CenterParent'
     $dlg.ClientSize = New-Object System.Drawing.Size([int](620 * $scale), [int](480 * $scale))
     $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
 
     $lv = New-Object System.Windows.Forms.ListView
     $lv.Dock = 'Fill'; $lv.View = 'Details'; $lv.FullRowSelect = $true; $lv.MultiSelect = $false; $lv.Sorting = 'Ascending'
-    [void]$lv.Columns.Add('Programm', [int](250 * $scale))
-    [void]$lv.Columns.Add('Datei', [int](340 * $scale))
+    [void]$lv.Columns.Add((T 'picker.colProgram'), [int](250 * $scale))
+    [void]$lv.Columns.Add((T 'picker.colFile'), [int](340 * $scale))
     $dlg.Cursor = 'WaitCursor'
     $procs = Get-Process | Where-Object { $_.Id -ne $PID -and $_.Path -and $_.Path -notlike "$env:WINDIR\*" } |
         Group-Object Path | ForEach-Object { $_.Group[0] }
@@ -479,9 +551,9 @@ function Show-ProcessPicker {
     $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
     $buttons.Dock = 'Bottom'; $buttons.AutoSize = $true; $buttons.FlowDirection = 'RightToLeft'; $buttons.Padding = '6'
     $btnCancel = New-Object System.Windows.Forms.Button
-    $btnCancel.Text = 'Abbrechen'; $btnCancel.AutoSize = $true; $btnCancel.DialogResult = 'Cancel'
+    $btnCancel.Text = T 'btn.cancel'; $btnCancel.AutoSize = $true; $btnCancel.DialogResult = 'Cancel'
     $btnOk = New-Object System.Windows.Forms.Button
-    $btnOk.Text = 'Hinzufügen'; $btnOk.AutoSize = $true; $btnOk.DialogResult = 'OK'
+    $btnOk.Text = T 'btn.addConfirm'; $btnOk.AutoSize = $true; $btnOk.DialogResult = 'OK'
     $buttons.Controls.AddRange(@($btnCancel, $btnOk))
     $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnCancel
     $dlg.Controls.AddRange(@($lv, $buttons))
@@ -505,7 +577,7 @@ $btnStartRemove.Add_Click({ if ($lstStart.SelectedItem) { $lstStart.Items.Remove
 $miAddRunning.Add_Click({ Add-AppToList $script:addTarget (Show-ProcessPicker) })
 $miAddFile.Add_Click({
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = 'Programm auswählen'; $dlg.Filter = 'Programme (*.exe)|*.exe'
+    $dlg.Title = T 'dlg.chooseProgram'; $dlg.Filter = T 'dlg.exeFilter'
     if ($dlg.ShowDialog($form) -eq 'OK') { Add-AppToList $script:addTarget $dlg.FileName }
 })
 
@@ -531,12 +603,12 @@ function Show-Games {
         if ($chkOnlySelected.Checked -and -not $isSelected) { continue }
         if ($filter -and $game.Name -notlike "*$filter*" -and ($game.Exes -join ' ') -notlike "*$filter*") { continue }
         $item = New-Object System.Windows.Forms.ListViewItem($game.Name)
-        [void]$item.SubItems.Add($game.Source)
+        [void]$item.SubItems.Add((Get-SourceText $game.Source))
         [void]$item.SubItems.Add(($game.Exes -join ', '))
         $item.Checked = $isSelected
         $item.Tag = $game
         $item.ToolTipText = $game.Path
-        if ($game.Source -eq 'nicht gefunden') { $item.ForeColor = $colorOff }
+        if ($game.Source -eq 'Missing') { $item.ForeColor = $colorOff }
         [void]$list.Items.Add($item)
     }
     $list.EndUpdate()
@@ -547,7 +619,7 @@ function Show-Games {
 
 function Invoke-Scan {
     $form.Cursor = 'WaitCursor'
-    $status.Text = 'Suche nach installierten Spielen…'
+    $status.Text = T 'status.scanning'
     [System.Windows.Forms.Application]::DoEvents()
     Find-AllGames
     Save-All
@@ -559,20 +631,19 @@ function Remove-SelectedGame {
     $game = Get-SelectedGame
     if (-not $game) { return }
     switch ($game.Source) {
-        'Eigene' {
+        'Custom' {
             $customExes.Remove($game.Origin)
             $selected.Remove($game.Key)
             $script:games = @($games | Where-Object { $_.Key -ne $game.Key })
         }
-        'Ordner' {
-            $answer = [System.Windows.Forms.MessageBox]::Show($form,
-                "Den Ordner`n$($game.Origin)`nund alle darin gefundenen Spiele aus der Liste entfernen?", 'Entfernen', 'YesNo')
+        'Folder' {
+            $answer = [System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.removeFolder' $game.Origin), (T 'btn.remove'), 'YesNo')
             if ($answer -ne 'Yes') { return }
             $customFolders.Remove($game.Origin)
             foreach ($g in @($games | Where-Object { $_.Origin -eq $game.Origin })) { $selected.Remove($g.Key) }
             $script:games = @($games | Where-Object { $_.Origin -ne $game.Origin })
         }
-        'nicht gefunden' {
+        'Missing' {
             $selected.Remove($game.Key)
             $script:games = @($games | Where-Object { $_.Key -ne $game.Key })
         }
@@ -621,7 +692,7 @@ $btnToggleHdr.Add_Click({
     try {
         foreach ($d in $script:hdrDisplays) { if ($d.HdrEnabled -ne $enable) { Set-Hdr $d $enable } }
     } catch {
-        [void][System.Windows.Forms.MessageBox]::Show($form, $_.Exception.Message, 'HDR umschalten')
+        [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.hdrError' $_.Exception.Message), 'HDR')
     }
     Start-Sleep -Milliseconds 700
     Update-Hdr
@@ -629,7 +700,7 @@ $btnToggleHdr.Add_Click({
 
 $btnAddExe.Add_Click({
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = 'Spiel auswählen'; $dlg.Filter = 'Programme (*.exe)|*.exe'
+    $dlg.Title = T 'dlg.chooseGame'; $dlg.Filter = T 'dlg.exeFilter'
     if ($dlg.ShowDialog($form) -ne 'OK') { return }
     if (-not ($customExes -contains $dlg.FileName)) { [void]$customExes.Add($dlg.FileName) }
     $game = New-ExeGame $dlg.FileName
@@ -641,12 +712,12 @@ $btnAddExe.Add_Click({
 
 $btnAddFolder.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dlg.Description = 'Ordner mit Spielen auswählen (jeder Unterordner wird als ein Spiel erkannt)'
+    $dlg.Description = T 'dlg.folderDescription'
     if ($dlg.ShowDialog($form) -ne 'OK') { return }
     $folder = $dlg.SelectedPath
-    $new = @(Get-FolderGames $folder 'Ordner')
+    $new = @(Get-FolderGames $folder 'Folder')
     if ($new.Count -eq 0) {
-        [void][System.Windows.Forms.MessageBox]::Show($form, 'In diesem Ordner wurden keine Spiele gefunden.', 'Ordner hinzufügen')
+        [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.noGamesInFolder'), (T 'btn.addFolder'))
         return
     }
     if (-not ($customFolders -contains $folder)) { [void]$customFolders.Add($folder) }
@@ -654,12 +725,12 @@ $btnAddFolder.Add_Click({
     $script:games = @(@($games | Where-Object { $keys -notcontains $_.Key }) + $new | Sort-Object Name)
     Save-All
     Show-Games
-    [void][System.Windows.Forms.MessageBox]::Show($form, "$($new.Count) Spiel(e) gefunden. Hake die an, bei denen HDR an sein soll.", 'Ordner hinzufügen')
+    [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.gamesFound' $new.Count), (T 'btn.addFolder'))
 })
 
 $btnLog.Add_Click({
     if (Test-Path $logFile) { Start-Process notepad.exe -ArgumentList "`"$logFile`"" }
-    else { [void][System.Windows.Forms.MessageBox]::Show($form, 'Es gibt noch kein Protokoll – der Dienst lief noch nicht.', 'Protokoll') }
+    else { [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.noLog'), (T 'btn.log')) }
 })
 
 $chkAutostart.Add_CheckedChanged({
@@ -671,7 +742,7 @@ $chkAutostart.Add_CheckedChanged({
             Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Stop
         }
     } catch {
-        [void][System.Windows.Forms.MessageBox]::Show($form, "Autostart konnte nicht geändert werden:`n$($_.Exception.Message)", 'Autostart')
+        [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.autostartError' $_.Exception.Message), (T 'opt.autostart'))
     }
     Update-ServiceState
     Update-Status
@@ -693,6 +764,33 @@ $btnService.Add_Click({
     Update-Status
 })
 
+# Switch the language at runtime: re-apply all texts
+function Update-Language {
+    Set-UiTexts
+    Update-Hdr
+    Update-Running
+    Update-AudioLabel
+    Update-AudioDeviceList
+    Update-ServiceState
+    Show-Games
+}
+
+$script:loading = $true
+foreach ($l in Get-Languages) {
+    $item = New-Object LangItem
+    $item.Code = $l.Code; $item.Name = $l.Name
+    [void]$cmbLanguage.Items.Add($item)
+    if ($l.Code -eq $script:language) { $cmbLanguage.SelectedItem = $item }
+}
+$script:loading = $false
+
+$cmbLanguage.Add_SelectedIndexChanged({
+    if ($script:loading -or -not $cmbLanguage.SelectedItem) { return }
+    Initialize-Language $cmbLanguage.SelectedItem.Code
+    Save-All
+    Update-Language
+})
+
 # Refresh the display every 2 s, the service state every 10 s
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 2000
@@ -704,6 +802,7 @@ $timer.Add_Tick({
     if ($script:tick % 5 -eq 0) { Update-ServiceState; Update-Status }
 })
 
+Set-UiTexts
 $form.Add_Shown({
     Show-Actions
     Update-AudioLabel

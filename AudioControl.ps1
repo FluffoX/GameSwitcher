@@ -16,6 +16,7 @@ public class AudioDevice {
     public string Id;
     public string Name;
     public bool IsDefault;
+    public bool Disconnected;
     public override string ToString() { return Name; }
 }
 
@@ -129,7 +130,7 @@ public static class AudioNative {
         IPolicyConfig policy = (IPolicyConfig)new PolicyConfigCom();
         int err = policy.SetDefaultEndpoint(id, eConsole);
         if (err == 0) err = policy.SetDefaultEndpoint(id, eMultimedia);
-        if (err != 0) throw new Exception("Audiogeraet konnte nicht umgeschaltet werden (Fehler 0x" + err.ToString("X8") + ").");
+        if (err != 0) throw new Exception("Could not switch the audio device (error 0x" + err.ToString("X8") + ").");
     }
 }
 '@
