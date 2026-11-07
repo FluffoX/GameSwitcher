@@ -49,3 +49,7 @@ Lokal erzeugte Dateien (nicht im Repository): `settings.json` (Auswahl und Optio
 - Zurückgesetzt wird nur, was der Dienst selbst geändert hat. Wer während des Spiels HDR oder das Audiogerät von Hand umstellt, behält seine Einstellung.
 - Das Umschalten des Audiogeräts nutzt die undokumentierte, aber seit Windows 7 stabile `IPolicyConfig`-Schnittstelle.
 - Wieder gestartete Programme starten ohne ihre ursprünglichen Startparameter.
+
+## Lizenz
+
+[MIT](LICENSE) – frei nutzbar, veränderbar und weitergebbar, solange der Lizenzhinweis erhalten bleibt.
