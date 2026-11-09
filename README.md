@@ -1,5 +1,7 @@
 # GameSwitcher
 
+[![CI](https://github.com/FluffoX/GameSwitcher/actions/workflows/ci.yml/badge.svg)](https://github.com/FluffoX/GameSwitcher/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/FluffoX/GameSwitcher)](https://github.com/FluffoX/GameSwitcher/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 **English** | [Deutsch](README.de.md)
 
 Automatically switches Windows 11 settings as soon as you start a game – and, if you want, switches everything back when the game exits.
@@ -45,45 +47,51 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 
 ## Installation
 
-1. Download `GameSwitcher-<version>.zip` from [Releases](https://github.com/FluffoX/GameSwitcher/releases) and extract it to a folder of your choice (e.g. `C:\Tools\GameSwitcher`).
-2. Start **GameSwitcher.exe**. On the first start GameSwitcher asks whether it should start with Windows – answer **Yes**. This sets up autostart and a Start menu entry.
+1. Download **`GameSwitcher-Setup-<version>.exe`** from [Releases](https://github.com/FluffoX/GameSwitcher/releases/latest) and run it. No administrator rights are needed; GameSwitcher is installed to `%LocalAppData%\Programs\GameSwitcher`.
+2. On the first start GameSwitcher asks whether it should start with Windows – answer **Yes**.
 3. Check your games and choose on the right what should happen when a game starts. Done.
 
-> Windows may show *"Windows protected your PC"* on the first start because the program is not code-signed. Click **More info → Run anyway**.
+> Windows may show *"Windows protected your PC"* because the program is not code-signed. Click **More info → Run anyway**.
 
-Autostart can be switched on or off later under **Settings…**. To remove GameSwitcher completely, turn off autostart there and delete the folder (or run `.\Install.ps1 -Uninstall`).
+**Update:** run the setup of the new version – it replaces the old one and keeps all settings. GameSwitcher tells you in its window when a new version is available.
 
-**From source:** clone the repository and run once:
+**Uninstall:** Windows Settings → Apps → GameSwitcher → Uninstall. This also removes autostart and the Start menu entry. Your settings in `%AppData%\GameSwitcher` are kept; delete that folder if you don't need them anymore.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Install.ps1
-```
+**Portable:** prefer no installation? Download `GameSwitcher-<version>.zip`, extract it anywhere and start `GameSwitcher.exe` – it asks about autostart the same way.
 
-`Install.ps1` builds `GameSwitcher.exe` with the C# compiler that ships with Windows and sets up autostart and the Start menu entry.
+Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt`.
 
 ## How it works
 
 The background service (`GameSwitcher.exe --watcher`, started at logon via Task Scheduler) checks every second whether a selected game is running, applies the actions of its profile and reverts them about 10 seconds after the game exits (so launcher restarts don't cause flickering). Everything is plain PowerShell (Windows PowerShell 5.1) hosted by a small C# launcher, so no console window ever appears and Task Manager shows "GameSwitcher".
 
-| File | Purpose |
-|---|---|
-| `GameSwitcher.ps1` | GUI: game list, profiles, actions, settings |
-| `Watcher.ps1` | Background service with tray icon, detection, play time |
-| `Actions.ps1` | Actions on game start/exit, profiles, crash-safe state |
-| `HdrControl.ps1` | HDR, SDR brightness and monitors via the DisplayConfig API |
-| `AudioControl.ps1` | Audio output, microphone and volume via Core Audio |
-| `SystemControl.ps1` | Display mode, power plans, standby, night light |
-| `Strings.ps1`, `lang/*.json` | Translations (one file per language) |
-| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
-| `Install.ps1` | Autostart task and shortcuts |
-| `Release.ps1` | Release ZIP and winget manifests |
+Settings, play time and logs are stored in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `state.json` only during a game).
 
-Files created locally (not part of the repository): `settings.json`, `playtime.json`, `state.json` (only during a game), `pause.json`, `watcher.log`.
+| Path | Purpose |
+|---|---|
+| `app/GameSwitcher.ps1` | GUI: game list, profiles, actions, settings |
+| `app/Watcher.ps1` | Background service with tray icon, detection, play time |
+| `app/Actions.ps1` | Actions on game start/exit, profiles, crash-safe state |
+| `app/HdrControl.ps1` | HDR, SDR brightness and monitors via the DisplayConfig API |
+| `app/AudioControl.ps1` | Audio output, microphone and volume via Core Audio |
+| `app/SystemControl.ps1` | Display mode, power plans, standby, night light |
+| `app/Install.ps1` | Autostart task and Start menu entry (used by the app and the uninstaller) |
+| `app/Strings.ps1`, `app/lang/*.json` | Translations (one file per language) |
+| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
+| `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portable ZIP and checksums |
+| `.github/workflows/` | Checks on every push; releases are built and published by GitHub Actions when a version tag is pushed |
+
+### Building from source
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\app\Install.ps1
+```
+
+builds `GameSwitcher.exe` with the C# compiler that ships with Windows and sets up autostart. `.\Release.ps1` builds the setup and ZIP locally (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` runs the same checks as GitHub Actions.
 
 ### Adding a language
 
-Copy `lang/en.json`, name it after the two-letter language code (e.g. `nl.json`), set `_name` to the language's own name for itself and translate the texts. Placeholders such as `{0}` must be kept. Missing entries automatically fall back to English. For scripts with their own characters, `_font` can name a suitable Windows font.
-
+Copy `app/lang/en.json`, name it after the two-letter language code (e.g. `nl.json`), set `_name` to the language's own name for itself and translate the texts. Placeholders such as `{0}` must be kept. Missing entries automatically fall back to English. For scripts with their own characters, `_font` can name a suitable Windows font.
 ## Notes
 
 - Some functions use undocumented but long-stable Windows interfaces: switching the audio device (`IPolicyConfig`), SDR brightness and night light. If Windows changes them, the affected action stops working; everything else keeps running.

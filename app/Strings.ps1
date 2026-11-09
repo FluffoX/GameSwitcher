@@ -26,7 +26,7 @@ function Get-Languages {
 # Language from settings.json, otherwise the Windows display language, otherwise English
 function Get-ConfiguredLanguage {
     $code = $null
-    try { $code = (Get-Content (Join-Path $PSScriptRoot 'settings.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json).Language } catch {}
+    try { $code = (Get-Content (Join-Path $env:APPDATA 'GameSwitcher\settings.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json).Language } catch {}
     if (-not $code) { $code = [Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName }
     if (Test-Path (Join-Path $langDir "$code.json")) { $code } else { 'en' }
 }

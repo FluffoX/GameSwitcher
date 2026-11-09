@@ -1,90 +1,53 @@
-﻿# Builds GameSwitcher.exe, packs dist\GameSwitcher-<version>.zip and writes the winget manifests.
-#   .\Release.ps1            build ZIP and manifests only
-#   .\Release.ps1 -Publish   also create the GitHub release (needs the GitHub CLI "gh")
-param([switch]$Publish)
+﻿# Builds the release files into dist\:
+#   GameSwitcher-Setup-<version>.exe   installer (needs Inno Setup 6)
+#   GameSwitcher-<version>.zip         portable version
+#   SHA256SUMS.txt                     checksums of both
+#   notes.md                           release notes from CHANGELOG.md
+# Used by the GitHub Actions release workflow; works the same locally.
+#   .\Release.ps1                 build
+#   .\Release.ps1 -Tag v2.2.0     build and check that the tag matches the app version
+param([string]$Tag)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-. (Join-Path $root 'AppInfo.ps1')
+$version = ([regex]::Match((Get-Content (Join-Path $root 'app\AppInfo.ps1') -Raw), "AppVersion = '([\d.]+)'")).Groups[1].Value
+if ($Tag -and $Tag -ne "v$version") { throw "Tag $Tag does not match AppVersion $version in app\AppInfo.ps1." }
+
+function Write-Utf8([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding $false)) }
 
 $dist = Join-Path $root 'dist'
 $stage = Join-Path $dist 'stage'
-Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force $stage, (Join-Path $stage 'assets') | Out-Null
-# built straight into the package, so a running GameSwitcher.exe does not block the build
+Remove-Item $dist -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $stage | Out-Null
+
+# What users get: GameSwitcher.exe, the app folder and the documents - no build tools
 & (Join-Path $root 'Build.ps1') -Out (Join-Path $stage 'GameSwitcher.exe') | Out-Null
-Copy-Item (Join-Path $root '*.ps1'), (Join-Path $root 'README*.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'CHANGELOG.md') $stage
-Copy-Item (Join-Path $root 'lang'), (Join-Path $root 'src') $stage -Recurse
-Copy-Item (Join-Path $root 'assets\icon.ico') (Join-Path $stage 'assets')
+Copy-Item (Join-Path $root 'app') $stage -Recurse
+Copy-Item (Join-Path $root 'README.md'), (Join-Path $root 'README.de.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'CHANGELOG.md') $stage
 
-$zip = Join-Path $dist "GameSwitcher-$AppVersion.zip"
-Remove-Item $zip -ErrorAction SilentlyContinue
+# Portable ZIP
+$zip = Join-Path $dist "GameSwitcher-$version.zip"
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
+
+# Installer
+$iscc = @((Get-Command iscc.exe -ErrorAction SilentlyContinue).Source,
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+    Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if ($iscc) {
+    $output = & $iscc /Q "/DAppVersion=$version" "/DSourceDir=$stage" "/DOutputDir=$dist" (Join-Path $root 'installer\GameSwitcher.iss')
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed:`n$($output -join "`n")" }
+} elseif ($Tag) {
+    throw 'Inno Setup (ISCC.exe) not found.'
+} else {
+    Write-Warning 'Inno Setup not found - building the ZIP only.'
+}
 Remove-Item $stage -Recurse -Force
-$sha = (Get-FileHash $zip -Algorithm SHA256).Hash
 
-# YAML without byte order mark
-function Write-Utf8([string]$Path, [Parameter(ValueFromPipeline)][string]$Text) {
-    process { [IO.File]::WriteAllText($Path, $Text + "`n", (New-Object Text.UTF8Encoding $false)) }
-}
+# Checksums and release notes
+$sums = Get-ChildItem $dist -File | Where-Object Extension -in '.exe', '.zip' | Sort-Object Name |
+    ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+Write-Utf8 (Join-Path $dist 'SHA256SUMS.txt') (($sums -join "`n") + "`n")
+$changelog = Get-Content (Join-Path $root 'CHANGELOG.md') -Raw -Encoding UTF8
+$section = [regex]::Match($changelog, "(?s)## $([regex]::Escape($version))\s*(.+?)(?=\r?\n## |\z)").Groups[1].Value.Trim()
+Write-Utf8 (Join-Path $dist 'notes.md') ($section + "`n`n**Installation:** download ``GameSwitcher-Setup-$version.exe`` and run it. Prefer no installation? Use ``GameSwitcher-$version.zip``, extract it anywhere and start ``GameSwitcher.exe``.`n")
 
-# winget manifests (submit them to github.com/microsoft/winget-pkgs after the release exists)
-$id = 'FluffoX.GameSwitcher'
-$manifestDir = Join-Path $root "winget\manifests\f\FluffoX\GameSwitcher\$AppVersion"
-New-Item -ItemType Directory -Force $manifestDir | Out-Null
-$url = "https://github.com/$AppRepo/releases/download/v$AppVersion/GameSwitcher-$AppVersion.zip"
-@"
-PackageIdentifier: $id
-PackageVersion: $AppVersion
-DefaultLocale: en-US
-ManifestType: version
-ManifestVersion: 1.6.0
-"@ | Write-Utf8 (Join-Path $manifestDir "$id.yaml")
-@"
-PackageIdentifier: $id
-PackageVersion: $AppVersion
-InstallerType: zip
-NestedInstallerType: portable
-NestedInstallerFiles:
-  - RelativeFilePath: GameSwitcher.exe
-    PortableCommandAlias: gameswitcher
-ArchiveBinariesDependOnPath: true
-Installers:
-  - Architecture: x64
-    InstallerUrl: $url
-    InstallerSha256: $sha
-ManifestType: installer
-ManifestVersion: 1.6.0
-"@ | Write-Utf8 (Join-Path $manifestDir "$id.installer.yaml")
-@"
-PackageIdentifier: $id
-PackageVersion: $AppVersion
-PackageLocale: en-US
-Publisher: FluffoX
-PublisherUrl: https://github.com/FluffoX
-PackageName: GameSwitcher
-PackageUrl: https://github.com/$AppRepo
-License: MIT
-LicenseUrl: https://github.com/$AppRepo/blob/main/LICENSE
-ShortDescription: Automatically switches HDR, audio, display mode, power plan and programs when a game starts on Windows 11.
-Tags:
-  - hdr
-  - gaming
-  - audio
-  - windows-11
-  - automation
-ReleaseNotesUrl: https://github.com/$AppRepo/releases/tag/v$AppVersion
-ManifestType: defaultLocale
-ManifestVersion: 1.6.0
-"@ | Write-Utf8 (Join-Path $manifestDir "$id.locale.en-US.yaml")
-
-"ZIP:       $zip"
-"SHA256:    $sha"
-"Manifests: $manifestDir"
-
-if ($Publish) {
-    $notes = Join-Path $dist 'notes.md'
-    $changelog = Get-Content (Join-Path $root 'CHANGELOG.md') -Raw -Encoding UTF8
-    $section = [regex]::Match($changelog, "(?s)## $([regex]::Escape($AppVersion))\s*(.+?)(?=\r?\n## |\z)").Groups[1].Value.Trim()
-    $section | Write-Utf8 $notes
-    gh release create "v$AppVersion" $zip --repo $AppRepo --title "GameSwitcher $AppVersion" --notes-file $notes
-}
+Get-ChildItem $dist -File | ForEach-Object { "{0,-34} {1,10:N0} bytes" -f $_.Name, $_.Length }

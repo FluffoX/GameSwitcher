@@ -6,9 +6,10 @@
 param([switch]$ScanOnly, [switch]$Demo)
 
 $root = $PSScriptRoot
-$logFile = Join-Path $root 'watcher.log'
-$pausePath = Join-Path $root 'pause.json'
-$playtimePath = Join-Path $root 'playtime.json'
+. (Join-Path $root 'AppInfo.ps1')
+$logFile = Join-Path $DataDir 'watcher.log'
+$pausePath = Join-Path $DataDir 'pause.json'
+$playtimePath = Join-Path $DataDir 'playtime.json'
 $taskName = 'GameSwitcher'
 
 # Folders and executables that are certainly not games
@@ -162,7 +163,7 @@ foreach ($k in @($options.Keys)) { if ($null -ne $s.$k) { $options[$k] = $s.$k }
 Initialize-Language (Get-ConfiguredLanguage)
 
 # The legacy games.txt (version 1.x) is no longer used
-$legacyGames = Join-Path $root 'games.txt'
+$legacyGames = Join-Path $InstallDir 'games.txt'
 if (-not $Demo -and (Test-Path $legacyGames)) { Remove-Item $legacyGames -ErrorAction SilentlyContinue }
 
 function Save-All {
@@ -315,7 +316,7 @@ if (-not $Demo) {
 $colorOn = [System.Drawing.Color]::FromArgb(0, 150, 70)
 $colorOff = [System.Drawing.Color]::Gray
 $removableSources = 'Custom', 'Folder', 'Missing'
-$iconPath = Join-Path $root 'assets\icon.ico'
+$iconPath = Join-Path $root 'icon.ico'
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'GameSwitcher'
@@ -340,9 +341,9 @@ function New-Label([string]$Margin = '3,7,3,3') {
     $l
 }
 
-function New-Flow([string]$Dock = 'None', [string]$Padding = '0') {
+function New-Flow([string]$Dock = 'None', [string]$Padding = '0,0,0,0') {
     $p = New-Object System.Windows.Forms.FlowLayoutPanel
-    $p.AutoSize = $true; $p.WrapContents = $false; $p.Margin = '0'; $p.Padding = $Padding
+    $p.AutoSize = $true; $p.WrapContents = $false; $p.Margin = '0,0,0,0'; $p.Padding = $Padding
     if ($Dock -ne 'None') { $p.Dock = $Dock; $p.WrapContents = $true }
     $p
 }
@@ -1109,7 +1110,7 @@ function Show-ProcessPicker {
     $lv.Add_DoubleClick({ $this.FindForm().DialogResult = 'OK' })
 
     $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
-    $buttons.Dock = 'Bottom'; $buttons.AutoSize = $true; $buttons.FlowDirection = 'RightToLeft'; $buttons.Padding = '6'
+    $buttons.Dock = 'Bottom'; $buttons.AutoSize = $true; $buttons.FlowDirection = 'RightToLeft'; $buttons.Padding = '6,6,6,6'
     $btnCancel = New-Button; $btnCancel.Text = T 'btn.cancel'; $btnCancel.DialogResult = 'Cancel'
     $btnOk = New-Button; $btnOk.Text = T 'btn.addConfirm'; $btnOk.DialogResult = 'OK'
     $buttons.Controls.AddRange(@($btnCancel, $btnOk))
@@ -1345,7 +1346,7 @@ function Invoke-FirstRunSetup {
 }
 
 function Start-Watcher {
-    $exe = Join-Path $root 'GameSwitcher.exe'
+    $exe = Join-Path $InstallDir 'GameSwitcher.exe'
     if (Test-Path $exe) { Start-Process $exe -ArgumentList '--watcher' }
     else {
         # conhost --headless: no console window, even with Windows Terminal as the default

@@ -7,8 +7,8 @@
 . (Join-Path $PSScriptRoot 'AudioControl.ps1')
 . (Join-Path $PSScriptRoot 'SystemControl.ps1')
 
-$settingsPath = Join-Path $PSScriptRoot 'settings.json'
-$statePath = Join-Path $PSScriptRoot 'state.json'
+$settingsPath = Join-Path $DataDir 'settings.json'
+$statePath = Join-Path $DataDir 'state.json'
 
 #region Settings and profiles
 

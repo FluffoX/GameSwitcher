@@ -1,5 +1,7 @@
 # GameSwitcher
 
+[![CI](https://github.com/FluffoX/GameSwitcher/actions/workflows/ci.yml/badge.svg)](https://github.com/FluffoX/GameSwitcher/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/FluffoX/GameSwitcher)](https://github.com/FluffoX/GameSwitcher/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 [English](README.md) | **Deutsch**
 
 Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und auf Wunsch nach dem Spielende alles wieder zurück.
@@ -45,45 +47,51 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 
 ## Installation
 
-1. `GameSwitcher-<version>.zip` unter [Releases](https://github.com/FluffoX/GameSwitcher/releases) herunterladen und in einen beliebigen Ordner entpacken (z. B. `C:\Tools\GameSwitcher`).
-2. **GameSwitcher.exe** starten. Beim ersten Start fragt GameSwitcher, ob es mit Windows starten soll – mit **Ja** beantworten. Damit werden Autostart und ein Eintrag im Startmenü eingerichtet.
+1. **`GameSwitcher-Setup-<version>.exe`** unter [Releases](https://github.com/FluffoX/GameSwitcher/releases/latest) herunterladen und ausführen. Administratorrechte sind nicht nötig; GameSwitcher wird nach `%LocalAppData%\Programs\GameSwitcher` installiert.
+2. Beim ersten Start fragt GameSwitcher, ob es mit Windows starten soll – mit **Ja** beantworten.
 3. Spiele anhaken und rechts festlegen, was beim Spielstart passieren soll. Fertig.
 
-> Beim ersten Start kann Windows *„Der Computer wurde durch Windows geschützt“* anzeigen, weil das Programm nicht code-signiert ist. Auf **Weitere Informationen → Trotzdem ausführen** klicken.
+> Windows kann *„Der Computer wurde durch Windows geschützt“* anzeigen, weil das Programm nicht code-signiert ist. Auf **Weitere Informationen → Trotzdem ausführen** klicken.
 
-Der Autostart lässt sich später unter **Einstellungen…** ein- und ausschalten. Zum vollständigen Entfernen dort den Autostart abschalten und den Ordner löschen (oder `.\Install.ps1 -Uninstall` ausführen).
+**Update:** das Setup der neuen Version ausführen – es ersetzt die alte und behält alle Einstellungen. GameSwitcher zeigt im Fenster an, wenn eine neue Version verfügbar ist.
 
-**Aus dem Quellcode:** Repository klonen und einmalig ausführen:
+**Deinstallieren:** Windows-Einstellungen → Apps → GameSwitcher → Deinstallieren. Dabei werden auch Autostart und Startmenü-Eintrag entfernt. Deine Einstellungen in `%AppData%\GameSwitcher` bleiben erhalten; den Ordner einfach löschen, wenn du sie nicht mehr brauchst.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Install.ps1
-```
+**Portabel:** lieber ohne Installation? `GameSwitcher-<version>.zip` herunterladen, beliebig entpacken und `GameSwitcher.exe` starten – die Frage nach dem Autostart kommt genauso.
 
-`Install.ps1` baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist, und richtet Autostart und Startmenü-Eintrag ein.
+Zu jedem Release gibt es die SHA-256-Prüfsummen der Dateien in `SHA256SUMS.txt`.
 
 ## Funktionsweise
 
 Der Hintergrunddienst (`GameSwitcher.exe --watcher`, bei der Anmeldung über die Aufgabenplanung gestartet) prüft jede Sekunde, ob ein ausgewähltes Spiel läuft, wendet die Aktionen seines Profils an und setzt sie etwa 10 Sekunden nach Spielende zurück (damit Launcher-Neustarts kein Hin und Her auslösen). Alles ist reines PowerShell (Windows PowerShell 5.1), ausgeführt von einem kleinen C#-Starter – deshalb erscheint nie ein Konsolenfenster, und im Task-Manager steht „GameSwitcher“.
 
-| Datei | Aufgabe |
-|---|---|
-| `GameSwitcher.ps1` | Oberfläche: Spieleliste, Profile, Aktionen, Einstellungen |
-| `Watcher.ps1` | Hintergrunddienst mit Tray-Symbol, Erkennung, Spielzeit |
-| `Actions.ps1` | Aktionen bei Spielstart/-ende, Profile, absturzsicherer Zustand |
-| `HdrControl.ps1` | HDR, SDR-Helligkeit und Monitore über die DisplayConfig-API |
-| `AudioControl.ps1` | Audioausgabe, Mikrofon und Lautstärke über Core Audio |
-| `SystemControl.ps1` | Anzeigemodus, Energiesparpläne, Standby, Nachtlicht |
-| `Strings.ps1`, `lang/*.json` | Übersetzungen (eine Datei pro Sprache) |
-| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
-| `Install.ps1` | Autostart-Aufgabe und Verknüpfungen |
-| `Release.ps1` | Release-ZIP und winget-Manifeste |
+Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `state.json` nur während eines Spiels).
 
-Lokal erzeugte Dateien (nicht im Repository): `settings.json`, `playtime.json`, `state.json` (nur während eines Spiels), `pause.json`, `watcher.log`.
+| Pfad | Aufgabe |
+|---|---|
+| `app/GameSwitcher.ps1` | Oberfläche: Spieleliste, Profile, Aktionen, Einstellungen |
+| `app/Watcher.ps1` | Hintergrunddienst mit Tray-Symbol, Erkennung, Spielzeit |
+| `app/Actions.ps1` | Aktionen bei Spielstart/-ende, Profile, absturzsicherer Zustand |
+| `app/HdrControl.ps1` | HDR, SDR-Helligkeit und Monitore über die DisplayConfig-API |
+| `app/AudioControl.ps1` | Audioausgabe, Mikrofon und Lautstärke über Core Audio |
+| `app/SystemControl.ps1` | Anzeigemodus, Energiesparpläne, Standby, Nachtlicht |
+| `app/Install.ps1` | Autostart-Aufgabe und Startmenü-Eintrag (genutzt von der App und der Deinstallation) |
+| `app/Strings.ps1`, `app/lang/*.json` | Übersetzungen (eine Datei pro Sprache) |
+| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
+| `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portables ZIP und Prüfsummen |
+| `.github/workflows/` | Prüfungen bei jedem Push; Releases baut und veröffentlicht GitHub Actions, sobald ein Versions-Tag hochgeladen wird |
+
+### Aus dem Quellcode bauen
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\app\Install.ps1
+```
+
+baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist, und richtet den Autostart ein. `.\Release.ps1` baut Setup und ZIP lokal (benötigt [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` führt dieselben Prüfungen aus wie GitHub Actions.
 
 ### Weitere Sprache hinzufügen
 
-`lang/en.json` kopieren, nach dem zweistelligen Sprachcode benennen (z. B. `nl.json`), `_name` auf den Namen der Sprache in der Sprache selbst setzen und die Texte übersetzen. Platzhalter wie `{0}` müssen erhalten bleiben. Fehlende Einträge werden automatisch auf Englisch angezeigt. Für Schriften mit eigenen Zeichen kann `_font` eine passende Windows-Schrift angeben.
-
+`app/lang/en.json` kopieren, nach dem zweistelligen Sprachcode benennen (z. B. `nl.json`), `_name` auf den Namen der Sprache in der Sprache selbst setzen und die Texte übersetzen. Platzhalter wie `{0}` müssen erhalten bleiben. Fehlende Einträge werden automatisch auf Englisch angezeigt. Für Schriften mit eigenen Zeichen kann `_font` eine passende Windows-Schrift angeben.
 ## Hinweise
 
 - Einige Funktionen nutzen undokumentierte, aber seit Langem stabile Windows-Schnittstellen: Audiogerät umschalten (`IPolicyConfig`), SDR-Helligkeit und Nachtlicht. Ändert Windows sie, funktioniert die betroffene Aktion nicht mehr; alles andere läuft weiter.

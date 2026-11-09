@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0
+
+- **Setup program:** `GameSwitcher-Setup-<version>.exe` installs GameSwitcher per user (no administrator rights), adds a Start menu entry and an entry under Windows Settings → Apps with a proper uninstaller. Running a newer setup updates in place.
+- **Settings moved to `%AppData%\GameSwitcher`:** settings, play time and logs are no longer stored next to the program, so updates and uninstalling never touch them. Existing files are moved there automatically.
+- **Tidy program folder:** only `GameSwitcher.exe` and the documents at the top, everything else in `app\`; build tools are no longer part of the download.
+- **Version information** in `GameSwitcher.exe` (file properties) and **SHA-256 checksums** for every release.
+- **Automated builds:** every push is checked by GitHub Actions; releases are built and published from the tagged source.
+- Fixed: some spacing values in the window were not applied.
+
 ## 2.1.0
 
 - **Setup on first start:** unpack the ZIP and start GameSwitcher.exe – the app asks whether it should start with Windows and sets up autostart and a Start menu entry itself. No PowerShell command needed anymore.

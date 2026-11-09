@@ -2,9 +2,10 @@
 # Windows knows, or the manual game mode via hotkey), applies the actions of the matching profile,
 # reverts them when the game exits and records play time.
 $root = $PSScriptRoot
-$logFile = Join-Path $root 'watcher.log'
-$pausePath = Join-Path $root 'pause.json'
-$playtimePath = Join-Path $root 'playtime.json'
+. (Join-Path $root 'AppInfo.ps1')
+$logFile = Join-Path $DataDir 'watcher.log'
+$pausePath = Join-Path $DataDir 'pause.json'
+$playtimePath = Join-Path $DataDir 'playtime.json'
 $idleSecondsBeforeRevert = 10   # covers launchers that restart the game process
 
 function Write-Log([string]$Message) {
@@ -269,7 +270,7 @@ $hotkey = New-Object HotkeyWindow
 $hotkey.add_Pressed({ $script:manual = -not $script:manual; Invoke-Tick })
 
 $tray = New-Object System.Windows.Forms.NotifyIcon
-$iconPath = Join-Path $root 'assets\icon.ico'
+$iconPath = Join-Path $root 'icon.ico'
 $tray.Icon = if (Test-Path $iconPath) { New-Object System.Drawing.Icon($iconPath, 16, 16) } else { [System.Drawing.SystemIcons]::Application }
 $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
 $miStatus = $trayMenu.Items.Add(''); $miStatus.Enabled = $false
@@ -308,7 +309,7 @@ function Update-TrayTexts($Paused = (Get-PauseInfo)) {
 }
 
 function Open-Gui {
-    $exe = Join-Path $root 'GameSwitcher.exe'
+    $exe = Join-Path $InstallDir 'GameSwitcher.exe'
     if (Test-Path $exe) { Start-Process $exe }
     else { Start-Process conhost.exe -ArgumentList "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $root 'GameSwitcher.ps1')`"" }
 }

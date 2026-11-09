@@ -1,4 +1,4 @@
-# Draws the app icon (white game controller on a violet-blue tile) and writes assets\icon.ico.
+﻿# Draws the app icon (white game controller on a violet-blue tile) and writes app\icon.ico.
 # Small sizes are stored as classic bitmaps (readable by WinForms), 256 px as PNG.
 $root = Split-Path $PSScriptRoot
 Add-Type -AssemblyName System.Drawing
@@ -68,5 +68,5 @@ foreach ($i in $images) {
 }
 foreach ($i in $images) { $w.Write([byte[]]$i.Bytes) }
 $w.Flush()
-[IO.File]::WriteAllBytes((Join-Path $root 'assets\icon.ico'), $out.ToArray())
-"assets\icon.ico written ($($out.Length) bytes)"
+[IO.File]::WriteAllBytes((Join-Path $root 'app\icon.ico'), $out.ToArray())
+"app\icon.ico written ($($out.Length) bytes)"

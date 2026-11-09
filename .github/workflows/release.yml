@@ -1,0 +1,37 @@
+name: Release
+
+# Pushing a tag like v2.2.0 builds the installer, the portable ZIP and the checksums from the
+# tagged source and publishes them as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check scripts and translations
+        shell: powershell
+        run: .\tools\Test-Project.ps1
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress -y
+
+      - name: Build release files
+        shell: powershell
+        run: .\Release.ps1 -Tag "${{ github.ref_name }}"
+
+      - name: Publish release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $files = Get-ChildItem dist -File | Where-Object Name -ne 'notes.md' | ForEach-Object FullName
+          gh release create $tag @files --title "GameSwitcher $($tag.TrimStart('v'))" --notes-file dist\notes.md

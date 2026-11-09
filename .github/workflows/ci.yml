@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: powershell
+        run: |
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Check scripts and translations
+        shell: powershell
+        run: .\tools\Test-Project.ps1
+
+      - name: Build GameSwitcher.exe
+        shell: powershell
+        run: .\Build.ps1
