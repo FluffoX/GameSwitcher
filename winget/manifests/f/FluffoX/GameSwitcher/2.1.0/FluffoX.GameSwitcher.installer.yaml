@@ -9,6 +9,6 @@ ArchiveBinariesDependOnPath: true
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/FluffoX/GameSwitcher/releases/download/v2.1.0/GameSwitcher-2.1.0.zip
-    InstallerSha256: 3B44807A6E9646017967B9878887A99CA04492270B49CBEDC573E94758367460
+    InstallerSha256: BA7E40B4A2C3E52B75A74E9AEB90E674CC93ECCD5248BF9CFF09E6ED84EC578D
 ManifestType: installer
 ManifestVersion: 1.6.0
