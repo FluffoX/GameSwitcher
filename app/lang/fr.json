@@ -176,5 +176,6 @@
   "log.resumed": "Reprise",
   "log.hotkeyFailed": "Impossible d'enregistrer le raccourci {0} (déjà utilisé ?)",
   "setup.title": "Bienvenue dans GameSwitcher",
-  "setup.text": "GameSwitcher fonctionne en arrière-plan et modifie vos réglages dès que vous lancez un jeu.\n\nGameSwitcher doit-il démarrer automatiquement avec Windows ? Une entrée sera aussi ajoutée au menu Démarrer. Vous pourrez modifier ce choix plus tard dans les paramètres.\n\nOui = démarrer avec Windows (recommandé)\nNon = seulement jusqu'au prochain redémarrage"
+  "setup.text": "GameSwitcher fonctionne en arrière-plan et modifie vos réglages dès que vous lancez un jeu.\n\nGameSwitcher doit-il démarrer automatiquement avec Windows ? Une entrée sera aussi ajoutée au menu Démarrer. Vous pourrez modifier ce choix plus tard dans les paramètres.\n\nOui = démarrer avec Windows (recommandé)\nNon = seulement jusqu'au prochain redémarrage",
+  "opt.trayHdr": "L'icône de la zone de notification bascule le HDR : un clic l'active ou le désactive, l'icône indique l'état (en couleur avec un point vert = activé, grise = désactivé)"
 }

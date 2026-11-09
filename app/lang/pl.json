@@ -176,5 +176,6 @@
   "log.resumed": "Wznowiono",
   "log.hotkeyFailed": "Nie udało się zarejestrować skrótu {0} (już zajęty?)",
   "setup.title": "Witaj w GameSwitcher",
-  "setup.text": "GameSwitcher działa w tle i przełącza ustawienia, gdy tylko uruchomisz grę.\n\nCzy GameSwitcher ma uruchamiać się automatycznie z systemem Windows? Zostanie też dodany skrót w menu Start. Możesz to później zmienić w ustawieniach.\n\nTak = uruchamiaj z Windows (zalecane)\nNie = tylko do następnego ponownego uruchomienia"
+  "setup.text": "GameSwitcher działa w tle i przełącza ustawienia, gdy tylko uruchomisz grę.\n\nCzy GameSwitcher ma uruchamiać się automatycznie z systemem Windows? Zostanie też dodany skrót w menu Start. Możesz to później zmienić w ustawieniach.\n\nTak = uruchamiaj z Windows (zalecane)\nNie = tylko do następnego ponownego uruchomienia",
+  "opt.trayHdr": "Ikona w zasobniku przełącza HDR: kliknięcie włącza lub wyłącza HDR, a ikona pokazuje stan (kolorowa z zieloną kropką = włączony, szara = wyłączony)"
 }

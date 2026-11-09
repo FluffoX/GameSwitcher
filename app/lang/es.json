@@ -176,5 +176,6 @@
   "log.resumed": "Reanudado",
   "log.hotkeyFailed": "No se pudo registrar el atajo {0} (¿ya está en uso?)",
   "setup.title": "Bienvenido a GameSwitcher",
-  "setup.text": "GameSwitcher se ejecuta en segundo plano y cambia tus ajustes en cuanto inicias un juego.\n\n¿Quieres que GameSwitcher se inicie automáticamente con Windows? También se añadirá una entrada en el menú Inicio. Puedes cambiarlo más tarde en Ajustes.\n\nSí = iniciar con Windows (recomendado)\nNo = solo hasta el próximo reinicio"
+  "setup.text": "GameSwitcher se ejecuta en segundo plano y cambia tus ajustes en cuanto inicias un juego.\n\n¿Quieres que GameSwitcher se inicie automáticamente con Windows? También se añadirá una entrada en el menú Inicio. Puedes cambiarlo más tarde en Ajustes.\n\nSí = iniciar con Windows (recomendado)\nNo = solo hasta el próximo reinicio",
+  "opt.trayHdr": "El icono de la bandeja cambia el HDR: un clic lo activa o desactiva y el icono muestra el estado (en color con punto verde = activado, gris = desactivado)"
 }

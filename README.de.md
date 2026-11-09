@@ -29,7 +29,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - Reagiert innerhalb von etwa einer Sekunde.
 
 **Im Alltag**
-- **Symbol im Infobereich** mit Status, Pause (1 Std., 2 Std., bis zum Neustart), HDR-Umschalter und manuellem Spielmodus.
+- **Symbol im Infobereich** mit Status, Pause (1 Std., 2 Std., bis zum Neustart), HDR-Umschalter und manuellem Spielmodus. Optional ist das Symbol selbst ein HDR-Schalter: Ein Klick schaltet HDR um, und das Symbol zeigt den Zustand (farbig mit grünem Punkt = an, grau = aus).
 - **Benachrichtigungen**, wenn Einstellungen übernommen und zurückgesetzt werden.
 - **Spielzeit** und „Zuletzt gespielt“ pro Spiel; Spiele direkt aus der Liste starten.
 - **Absturzsicher:** Jede Änderung wird sofort vermerkt und nach einem Absturz oder Stromausfall beim nächsten Start zurückgesetzt.

@@ -176,5 +176,6 @@
   "log.resumed": "Devam ediliyor",
   "log.hotkeyFailed": "{0} kısayolu kaydedilemedi (zaten kullanımda mı?)",
   "setup.title": "GameSwitcher'a hoş geldiniz",
-  "setup.text": "GameSwitcher arka planda çalışır ve bir oyun başlattığınız anda ayarlarınızı değiştirir.\n\nGameSwitcher Windows ile birlikte otomatik başlasın mı? Başlat menüsüne de bir kısayol eklenir. Bunu daha sonra Ayarlar'dan değiştirebilirsiniz.\n\nEvet = Windows ile başlat (önerilir)\nHayır = yalnızca bir sonraki yeniden başlatmaya kadar"
+  "setup.text": "GameSwitcher arka planda çalışır ve bir oyun başlattığınız anda ayarlarınızı değiştirir.\n\nGameSwitcher Windows ile birlikte otomatik başlasın mı? Başlat menüsüne de bir kısayol eklenir. Bunu daha sonra Ayarlar'dan değiştirebilirsiniz.\n\nEvet = Windows ile başlat (önerilir)\nHayır = yalnızca bir sonraki yeniden başlatmaya kadar",
+  "opt.trayHdr": "Bildirim alanı simgesi HDR'yi değiştirir: bir tıklama HDR'yi açar veya kapatır, simge durumu gösterir (yeşil noktalı renkli = açık, gri = kapalı)"
 }

@@ -20,6 +20,7 @@ namespace GameSwitcher.Gui
         readonly Label lblLanguage = NewLabel(new Padding(3, 14, 8, 3)), lblTheme = NewLabel(new Padding(3, 8, 8, 3));
         readonly ComboBox cmbLanguage, cmbTheme;
         readonly CheckBox chkNotify = NewCheck(new Padding(3, 14, 3, 3)), chkAutoDetect = NewCheck(new Padding(3, 6, 3, 3));
+        readonly CheckBox chkTrayHdr = NewCheck(new Padding(3, 6, 3, 3));
         readonly CheckBox chkHotkey = NewCheck(new Padding(3, 10, 3, 3));
         readonly TextBox txtHotkey = new TextBox { ReadOnly = true, Margin = new Padding(6, 8, 3, 3) };
         readonly Label lblHotkeyHint = NewLabel(new Padding(23, 0, 3, 3));
@@ -61,6 +62,7 @@ namespace GameSwitcher.Gui
             cmbTheme = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = LogicalToDeviceUnits(200), Margin = new Padding(3, 4, 3, 3) };
             txtHotkey.Width = LogicalToDeviceUnits(130);
             chkAutoDetect.Tag = LogicalToDeviceUnits(500);
+            chkTrayHdr.Tag = LogicalToDeviceUnits(500);
 
             var panel = new FlowLayoutPanel
             {
@@ -69,7 +71,7 @@ namespace GameSwitcher.Gui
             };
             panel.Controls.AddRange(new Control[] {
                 chkAutostart, Row(lblService, btnService), Row(lblLanguage, cmbLanguage), Row(lblTheme, cmbTheme),
-                chkNotify, chkAutoDetect, Row(chkHotkey, txtHotkey), lblHotkeyHint,
+                chkNotify, chkTrayHdr, chkAutoDetect, Row(chkHotkey, txtHotkey), lblHotkeyHint,
                 Row(chkUpdates, btnCheck), lblUpdate, lnkAbout, btnClose });
             Controls.Add(panel);
 
@@ -84,6 +86,7 @@ namespace GameSwitcher.Gui
             }
             chkNotify.Checked = settings.Notifications;
             chkAutoDetect.Checked = settings.AutoDetect;
+            chkTrayHdr.Checked = settings.TrayHdrToggle;
             chkHotkey.Checked = settings.Hotkey.Length > 0;
             txtHotkey.Text = settings.Hotkey.Length > 0 ? settings.Hotkey : "Ctrl+Alt+G";
             txtHotkey.Enabled = chkHotkey.Checked;
@@ -105,6 +108,7 @@ namespace GameSwitcher.Gui
             lblTheme.Text = T("opt.theme");
             chkNotify.Text = T("opt.notifications");
             chkAutoDetect.Text = T("opt.autoDetect");
+            chkTrayHdr.Text = T("opt.trayHdr");
             chkHotkey.Text = T("opt.hotkey");
             lblHotkeyHint.Text = T("hotkey.hint");
             lblHotkeyHint.ForeColor = Color.Gray;
@@ -173,6 +177,7 @@ namespace GameSwitcher.Gui
             };
             chkNotify.CheckedChanged += (s, e) => { if (!loading) { settings.Notifications = chkNotify.Checked; main.Save(); } };
             chkAutoDetect.CheckedChanged += (s, e) => { if (!loading) { settings.AutoDetect = chkAutoDetect.Checked; main.Save(); } };
+            chkTrayHdr.CheckedChanged += (s, e) => { if (!loading) { settings.TrayHdrToggle = chkTrayHdr.Checked; main.Save(); } };
             chkHotkey.CheckedChanged += (s, e) =>
             {
                 if (loading) return;

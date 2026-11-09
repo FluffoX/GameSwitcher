@@ -15,7 +15,7 @@ namespace GameSwitcher
         public Dictionary<string, object> Raw = new Dictionary<string, object>();
         public List<GameRef> Selected = new List<GameRef>();
         public List<GameRef> Library = new List<GameRef>();
-        public bool AutoDetect, Notifications = true;
+        public bool AutoDetect, Notifications = true, TrayHdrToggle;
         public string Hotkey = "";
 
         public static Config Load()
@@ -28,6 +28,7 @@ namespace GameSwitcher
             c.Library = Games(raw.List("Library"));
             c.AutoDetect = raw.Bool("AutoDetect");
             c.Notifications = raw.Bool("Notifications", true);
+            c.TrayHdrToggle = raw.Bool("TrayHdrToggle");
             c.Hotkey = raw.Str("Hotkey");
             return c;
         }

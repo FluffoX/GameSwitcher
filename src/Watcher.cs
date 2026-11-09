@@ -60,8 +60,8 @@ namespace GameSwitcher
         {
             hotkey.Pressed += (s, e) => { manual = !manual; Tick(); };
 
-            string iconPath = Path.Combine(Paths.AppDir, "icon.ico");
-            tray.Icon = File.Exists(iconPath) ? new Icon(iconPath, SystemInformation.SmallIconSize) : SystemIcons.Application;
+            CreateTrayIcons();
+            tray.Icon = iconNormal;
             miStatus = Add(menu.Items, null); miStatus.Enabled = false;
             menu.Items.Add(new ToolStripSeparator());
             miOpen = Add(menu.Items, OpenGui); miOpen.Font = new Font(miOpen.Font, FontStyle.Bold);
@@ -76,7 +76,10 @@ namespace GameSwitcher
             menu.Items.Add(new ToolStripSeparator());
             miExit = Add(menu.Items, ExitService);
             tray.ContextMenuStrip = menu;
-            tray.DoubleClick += (s, e) => OpenGui();
+            // Optionally a left click toggles HDR; then the window opens via the menu only,
+            // because a double click would toggle twice
+            tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left && config.TrayHdrToggle) TrayToggleHdr(); };
+            tray.DoubleClick += (s, e) => { if (!config.TrayHdrToggle) OpenGui(); };
 
             UpdateConfig();
             Log.Write(T("log.watcherStarted"));
@@ -320,9 +323,90 @@ namespace GameSwitcher
             else
                 miStatus.Text = T("tray.idle");
 
-            string tip = "GameSwitcher – " + miStatus.Text;
+            bool? hdr = UpdateTrayIcon();
+            string tip = "GameSwitcher – " + (hdr == null ? "" : (hdr.Value ? T("hdr.on") : T("hdr.off")) + " – ") + miStatus.Text;
             tray.Text = tip.Length > 63 ? tip.Substring(0, 60) + "..." : tip;
         }
+
+        #endregion
+
+        #region HDR in the tray icon
+
+        Icon iconNormal, iconHdrOn, iconHdrOff;
+        DateTime lastTrayToggle = DateTime.MinValue;
+
+        // Colored icon with a green dot = HDR on, gray icon = HDR off
+        void CreateTrayIcons()
+        {
+            string iconPath = Path.Combine(Paths.AppDir, "icon.ico");
+            if (!File.Exists(iconPath)) { iconNormal = iconHdrOn = iconHdrOff = SystemIcons.Application; return; }
+            iconNormal = new Icon(iconPath, SystemInformation.SmallIconSize);
+            using (var source = new Icon(iconPath, 48, 48).ToBitmap())
+            {
+                iconHdrOn = DrawTrayIcon(source, gray: false, dot: true);
+                iconHdrOff = DrawTrayIcon(source, gray: true, dot: false);
+            }
+        }
+
+        static Icon DrawTrayIcon(Bitmap source, bool gray, bool dot)
+        {
+            int n = SystemInformation.SmallIconSize.Width;
+            using (var bmp = new Bitmap(n, n, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+            {
+                using (var g = Graphics.FromImage(bmp))
+                using (var attr = new System.Drawing.Imaging.ImageAttributes())
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    if (gray)
+                        attr.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix(new[]
+                        {
+                            new[] { .3f, .3f, .3f, 0f, 0f }, new[] { .59f, .59f, .59f, 0f, 0f }, new[] { .11f, .11f, .11f, 0f, 0f },
+                            new[] { 0f, 0f, 0f, .8f, 0f }, new[] { 0f, 0f, 0f, 0f, 1f }
+                        }));
+                    g.DrawImage(source, new Rectangle(0, 0, n, n), 0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attr);
+                    if (dot)
+                    {
+                        float d = n * 0.48f, x = n - d, y = n - d;
+                        using (var outline = new SolidBrush(Color.FromArgb(255, 20, 20, 20))) g.FillEllipse(outline, x - 1, y - 1, d + 1, d + 1);
+                        using (var green = new SolidBrush(Color.FromArgb(255, 40, 210, 90))) g.FillEllipse(green, x, y, d - 1, d - 1);
+                    }
+                }
+                IntPtr h = bmp.GetHicon();
+                return (Icon)Icon.FromHandle(h).Clone();
+            }
+        }
+
+        // Shows the HDR state in the icon while the option is on; returns the state (null if not shown)
+        bool? UpdateTrayIcon()
+        {
+            bool? hdr = null;
+            if (config.TrayHdrToggle)
+            {
+                try
+                {
+                    var displays = DisplayConfig.GetDisplays().Where(d => d.HdrSupported).ToList();
+                    if (displays.Count > 0) hdr = displays.Any(d => d.HdrEnabled);
+                }
+                catch { }
+            }
+            Icon wanted = hdr == null ? iconNormal : hdr.Value ? iconHdrOn : iconHdrOff;
+            if (tray.Icon != wanted) tray.Icon = wanted;
+            return hdr;
+        }
+
+        void TrayToggleHdr()
+        {
+            // ignore a second click while Windows is still switching (e.g. from a double click)
+            if ((DateTime.Now - lastTrayToggle).TotalSeconds < 1.5) return;
+            lastTrayToggle = DateTime.Now;
+            ToggleHdr();
+            UpdateTrayTexts(Pause.Get());
+        }
+
+        #endregion
+
+        #region Tray actions
 
         void OpenGui()
         {
@@ -341,7 +425,7 @@ namespace GameSwitcher
             catch (Exception ex) { Log.Write(T("log.hdrError", ex.Message)); }
         }
 
-// The window ("Stop service") and the uninstaller signal this event: revert and exit cleanly
+        // The window ("Stop service") and the uninstaller signal this event: revert and exit cleanly
         readonly EventWaitHandle exitRequest = new EventWaitHandle(false, EventResetMode.AutoReset, Autostart.ServiceExitEvent);
         readonly Control invoker = new Control();
 

@@ -29,7 +29,7 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 - Reacts within about a second.
 
 **Everyday use**
-- **Tray icon** with status, pause (1 h, 2 h, until restart), HDR toggle and manual game mode.
+- **Tray icon** with status, pause (1 h, 2 h, until restart), HDR toggle and manual game mode. Optionally the tray icon itself is an HDR switch: a click toggles HDR, and the icon shows the state (colored with a green dot = on, gray = off).
 - **Notifications** when settings are applied and restored.
 - **Play time** and last played per game; launch games directly from the list.
 - **Crash-safe:** every change is recorded right away and reverted on the next start after a crash or power loss.

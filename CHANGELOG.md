@@ -3,6 +3,7 @@
 ## 2.4.0
 
 - **The window is now C# as well:** GameSwitcher no longer contains any PowerShell. Same window, same features, same settings – it just starts faster and needs less memory.
+- **Tray icon as HDR switch (optional, in the settings):** a click on the tray icon toggles HDR, and the icon shows the state – colored with a green dot = HDR on, gray = HDR off. The window then opens via the tray menu.
 - **Clean shutdown:** "Stop service", updates and uninstalling now ask the background service to revert its changes and exit, instead of ending it forcibly.
 - `GameSwitcher.exe --install` / `--uninstall` / `--stop` for autostart, removal and stopping the service; the uninstaller uses them.
 - The program folder only contains `GameSwitcher.exe`, the translations and the icon.

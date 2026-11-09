@@ -176,5 +176,6 @@
   "log.resumed": "Resumed",
   "log.hotkeyFailed": "Hotkey {0} could not be registered (already in use?)",
   "setup.title": "Welcome to GameSwitcher",
-  "setup.text": "GameSwitcher runs in the background and switches your settings as soon as you start a game.\n\nShould GameSwitcher start automatically with Windows? A Start menu entry will be added as well. You can change this later under Settings.\n\nYes = start with Windows (recommended)\nNo = run only until the next restart"
+  "setup.text": "GameSwitcher runs in the background and switches your settings as soon as you start a game.\n\nShould GameSwitcher start automatically with Windows? A Start menu entry will be added as well. You can change this later under Settings.\n\nYes = start with Windows (recommended)\nNo = run only until the next restart",
+  "opt.trayHdr": "Tray icon switches HDR: a click toggles HDR, the icon shows the state (colored with a green dot = on, gray = off)"
 }

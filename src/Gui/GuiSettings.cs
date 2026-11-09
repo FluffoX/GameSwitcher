@@ -11,7 +11,7 @@ namespace GameSwitcher.Gui
         public ActionSet Actions = new ActionSet(null);
         public List<string> CustomFolders = new List<string>(), CustomExes = new List<string>();
         public string Language = "", Hotkey = "Ctrl+Alt+G", Theme = "system";
-        public bool AutoDetect, Notifications = true, CheckUpdates = true, SetupDone;
+        public bool AutoDetect, Notifications = true, CheckUpdates = true, SetupDone, TrayHdrToggle;
         public bool Demo;
 
         public static GuiSettings Load()
@@ -32,6 +32,7 @@ namespace GameSwitcher.Gui
             s.Notifications = raw.Bool("Notifications", true);
             s.CheckUpdates = raw.Bool("CheckUpdates", true);
             s.SetupDone = raw.Bool("SetupDone");
+            s.TrayHdrToggle = raw.Bool("TrayHdrToggle");
             return s;
         }
 
@@ -53,6 +54,7 @@ namespace GameSwitcher.Gui
                 ["Theme"] = Theme,
                 ["CheckUpdates"] = CheckUpdates,
                 ["SetupDone"] = SetupDone,
+                ["TrayHdrToggle"] = TrayHdrToggle,
                 // all found games, so the service's automatic detection uses the same keys as the list
                 ["Library"] = library.Where(g => g.Source != "Missing").Select(g => Ref(new GameRef { Key = g.Key, Name = g.Name, Exes = g.Exes })).ToArray(),
             };
