@@ -27,8 +27,9 @@ foreach ($f in Get-ChildItem $langDir -Filter *.json) {
     }
 }
 
-# Every T 'key' used in the scripts exists in English
-$used = Select-String -Path (Join-Path $root 'app\*.ps1') -Pattern "\bT '([a-zA-Z]+\.[a-zA-Z0-9]+)'" -AllMatches |
+# Every text key used in the scripts (T 'key') and in the C# code (T("key")) exists in English
+$used = @(Select-String -Path (Join-Path $root 'app\*.ps1') -Pattern "\bT '([a-zA-Z]+\.[a-zA-Z0-9]+)'" -AllMatches) +
+        @(Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.cs | Select-String -Pattern '\bT\("([a-zA-Z]+\.[a-zA-Z0-9]+)"' -AllMatches) |
     ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 foreach ($k in $used) { if ($enKeys -notcontains $k) { Write-Host "UNKNOWN KEY  $k"; $failed++ } }
 

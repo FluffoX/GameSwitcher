@@ -63,21 +63,23 @@ Zu jedem Release gibt es die SHA-256-Prüfsummen der Dateien in `SHA256SUMS.txt`
 
 ## Funktionsweise
 
-Der Hintergrunddienst (`GameSwitcher.exe --watcher`, bei der Anmeldung über die Aufgabenplanung gestartet) prüft jede Sekunde, ob ein ausgewähltes Spiel läuft, wendet die Aktionen seines Profils an und setzt sie etwa 10 Sekunden nach Spielende zurück (damit Launcher-Neustarts kein Hin und Her auslösen). Alles ist reines PowerShell (Windows PowerShell 5.1), ausgeführt von einem kleinen C#-Starter – deshalb erscheint nie ein Konsolenfenster, und im Task-Manager steht „GameSwitcher“.
+Der Hintergrunddienst (`GameSwitcher.exe --watcher`, bei der Anmeldung über die Aufgabenplanung gestartet) prüft jede Sekunde, ob ein ausgewähltes Spiel läuft, wendet die Aktionen seines Profils an und setzt sie etwa 10 Sekunden nach Spielende zurück (damit Launcher-Neustarts kein Hin und Her auslösen). Der Hintergrunddienst ist in C# geschrieben und nutzt das .NET Framework 4.8, das in Windows enthalten ist – er braucht also keine zusätzliche Laufzeitumgebung und wenig Arbeitsspeicher (etwa 35 MB). Das Fenster ist PowerShell (Windows PowerShell 5.1), ausgeführt von derselben `GameSwitcher.exe` – es erscheint nie ein Konsolenfenster, und im Task-Manager steht „GameSwitcher“.
 
 Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `state.json` nur während eines Spiels).
 
 | Pfad | Aufgabe |
 |---|---|
 | `app/GameSwitcher.ps1` | Oberfläche: Spieleliste, Profile, Aktionen, Einstellungen |
-| `app/Watcher.ps1` | Hintergrunddienst mit Tray-Symbol, Erkennung, Spielzeit |
-| `app/Actions.ps1` | Aktionen bei Spielstart/-ende, Profile, absturzsicherer Zustand |
-| `app/HdrControl.ps1` | HDR, SDR-Helligkeit und Monitore über die DisplayConfig-API |
-| `app/AudioControl.ps1` | Audioausgabe, Mikrofon und Lautstärke über Core Audio |
-| `app/SystemControl.ps1` | Anzeigemodus, Energiesparpläne, Standby, Nachtlicht |
+| `app/Settings.ps1` | Einstellungen und Profile für die Oberfläche |
+| `app/HdrControl.ps1`, `AudioControl.ps1`, `SystemControl.ps1` | Statusanzeigen und Auswahllisten der Oberfläche |
 | `app/Install.ps1` | Autostart-Aufgabe und Startmenü-Eintrag (genutzt von der App und der Deinstallation) |
 | `app/Strings.ps1`, `app/lang/*.json` | Übersetzungen (eine Datei pro Sprache) |
-| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
+| `src/Watcher.cs` | Hintergrunddienst: Tray-Symbol, Erkennung, Tastenkürzel, Pause, Spielzeit |
+| `src/GameActions.cs` | Aktionen bei Spielstart/-ende, absturzsicherer Zustand |
+| `src/Native/*.cs` | HDR, SDR, Monitore (DisplayConfig), Audio (Core Audio), Anzeigemodus, Energiesparpläne, Nachtlicht |
+| `src/Config.cs`, `Strings.cs`, `Paths.cs` | Einstellungen, Profile, Übersetzungen, Ordner (gemeinsam mit der Oberfläche) |
+| `src/PowerShellHost.cs` | Führt die Oberfläche in `GameSwitcher.exe` aus |
+| `Build.ps1` | Baut `GameSwitcher.exe` |
 | `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portables ZIP und Prüfsummen |
 | `.github/workflows/` | Prüfungen bei jedem Push; Releases baut und veröffentlicht GitHub Actions, sobald ein Versions-Tag hochgeladen wird |
 
@@ -87,7 +89,7 @@ Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`set
 powershell -ExecutionPolicy Bypass -File .\app\Install.ps1
 ```
 
-baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist, und richtet den Autostart ein. `.\Release.ps1` baut Setup und ZIP lokal (benötigt [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` führt dieselben Prüfungen aus wie GitHub Actions.
+baut `GameSwitcher.exe` und richtet den Autostart ein. Zum Bauen wird das [.NET SDK](https://dotnet.microsoft.com/download) benötigt (ab Version 6, nur zum Bauen – das Programm selbst läuft mit dem in Windows enthaltenen .NET Framework; Internet oder Pakete sind nicht nötig). `.\Release.ps1` baut Setup und ZIP lokal (benötigt [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` führt dieselben Prüfungen aus wie GitHub Actions.
 
 ### Weitere Sprache hinzufügen
 
@@ -97,7 +99,7 @@ baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist, und r
 - Einige Funktionen nutzen undokumentierte, aber seit Langem stabile Windows-Schnittstellen: Audiogerät umschalten (`IPolicyConfig`), SDR-Helligkeit und Nachtlicht. Ändert Windows sie, funktioniert die betroffene Aktion nicht mehr; alles andere läuft weiter.
 - „Weitere Monitore ausschalten“ behält den Monitor mit dem Hauptdesktop und stellt danach die zuletzt von Windows gemerkte erweiterte Anordnung wieder her.
 - Wieder gestartete Programme starten ohne ihre ursprünglichen Startparameter.
-- `GameSwitcher.exe` ist nicht code-signiert. Manche Virenscanner sind bei Programmen, die PowerShell ausführen, vorsichtig; der vollständige Quellcode liegt in `src/Launcher.cs`.
+- `GameSwitcher.exe` ist nicht code-signiert. Der Hintergrunddienst führt kein PowerShell mehr aus, das Fenster aber noch – bei so etwas sind manche Virenscanner vorsichtig; der vollständige Quellcode liegt in `src/` und `app/`.
 - Die Update-Prüfung kontaktiert nur `api.github.com`.
 
 ## Lizenz

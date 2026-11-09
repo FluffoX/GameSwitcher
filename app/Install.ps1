@@ -12,8 +12,7 @@ $exe = Join-Path $installDir 'GameSwitcher.exe'
 $startMenuLink = Join-Path ([Environment]::GetFolderPath('Programs')) 'GameSwitcher.lnk'
 
 function Stop-Watcher {
-    Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='GameSwitcher.exe'" |
-        Where-Object { $_.CommandLine -like '*Watcher.ps1*' -or $_.CommandLine -like '*--watcher*' } |
+    Get-CimInstance Win32_Process -Filter "Name='GameSwitcher.exe'" | Where-Object { $_.CommandLine -like '*--watcher*' } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 }
 
@@ -30,19 +29,10 @@ if ($Uninstall) {
 }
 
 $build = Join-Path $installDir 'Build.ps1'
-if (-not (Test-Path $exe) -and (Test-Path $build)) {
-    try { & $build | Out-Null } catch { Write-Warning $_.Exception.Message }
-}
+if (-not (Test-Path $exe) -and (Test-Path $build)) { & $build | Out-Null }
+if (-not (Test-Path $exe)) { throw "GameSwitcher.exe not found in $installDir." }
 
-# GameSwitcher.exe runs without any window; without it, conhost --headless hides PowerShell
-# (even when Windows Terminal is the default terminal)
-if (Test-Path $exe) {
-    $action = New-ScheduledTaskAction -Execute $exe -Argument '--watcher' -WorkingDirectory $installDir
-} else {
-    $watcher = Join-Path $PSScriptRoot 'Watcher.ps1'
-    $action = New-ScheduledTaskAction -Execute 'conhost.exe' `
-        -Argument "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$watcher`""
-}
+$action = New-ScheduledTaskAction -Execute $exe -Argument '--watcher' -WorkingDirectory $installDir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
@@ -54,15 +44,9 @@ if (-not $NoStart) { Start-ScheduledTask -TaskName $taskName }
 
 # Start menu entry for the GUI
 $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($startMenuLink)
-if (Test-Path $exe) {
-    $lnk.TargetPath = $exe
-    $lnk.Arguments = ''
-    $lnk.IconLocation = "$exe,0"
-} else {
-    $lnk.TargetPath = "$env:WINDIR\System32\conhost.exe"
-    $lnk.Arguments = "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'GameSwitcher.ps1')`""
-    $lnk.IconLocation = Join-Path $PSScriptRoot 'icon.ico'
-}
+$lnk.TargetPath = $exe
+$lnk.Arguments = ''
+$lnk.IconLocation = "$exe,0"
 $lnk.WorkingDirectory = $installDir
 $lnk.Description = 'GameSwitcher'
 $lnk.Save()

@@ -63,21 +63,23 @@ Every release lists the SHA-256 checksums of its files in `SHA256SUMS.txt`.
 
 ## How it works
 
-The background service (`GameSwitcher.exe --watcher`, started at logon via Task Scheduler) checks every second whether a selected game is running, applies the actions of its profile and reverts them about 10 seconds after the game exits (so launcher restarts don't cause flickering). Everything is plain PowerShell (Windows PowerShell 5.1) hosted by a small C# launcher, so no console window ever appears and Task Manager shows "GameSwitcher".
+The background service (`GameSwitcher.exe --watcher`, started at logon via Task Scheduler) checks every second whether a selected game is running, applies the actions of its profile and reverts them about 10 seconds after the game exits (so launcher restarts don't cause flickering). The background service is written in C# and targets the .NET Framework 4.8 that ships with Windows, so it needs no extra runtime and little memory (about 35 MB). The window is PowerShell (Windows PowerShell 5.1), hosted by the same `GameSwitcher.exe` – no console window ever appears, and Task Manager shows "GameSwitcher".
 
 Settings, play time and logs are stored in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `state.json` only during a game).
 
 | Path | Purpose |
 |---|---|
 | `app/GameSwitcher.ps1` | GUI: game list, profiles, actions, settings |
-| `app/Watcher.ps1` | Background service with tray icon, detection, play time |
-| `app/Actions.ps1` | Actions on game start/exit, profiles, crash-safe state |
-| `app/HdrControl.ps1` | HDR, SDR brightness and monitors via the DisplayConfig API |
-| `app/AudioControl.ps1` | Audio output, microphone and volume via Core Audio |
-| `app/SystemControl.ps1` | Display mode, power plans, standby, night light |
+| `app/Settings.ps1` | Settings and profiles for the GUI |
+| `app/HdrControl.ps1`, `AudioControl.ps1`, `SystemControl.ps1` | Status displays and selection lists in the GUI |
 | `app/Install.ps1` | Autostart task and Start menu entry (used by the app and the uninstaller) |
 | `app/Strings.ps1`, `app/lang/*.json` | Translations (one file per language) |
-| `src/Launcher.cs`, `Build.ps1` | `GameSwitcher.exe` |
+| `src/Watcher.cs` | Background service: tray icon, detection, hotkey, pause, play time |
+| `src/GameActions.cs` | Actions on game start/exit, crash-safe state |
+| `src/Native/*.cs` | HDR, SDR, monitors (DisplayConfig), audio (Core Audio), display mode, power plans, night light |
+| `src/Config.cs`, `Strings.cs`, `Paths.cs` | Settings, profiles, translations, folders (shared with the GUI) |
+| `src/PowerShellHost.cs` | Runs the GUI inside `GameSwitcher.exe` |
+| `Build.ps1` | Builds `GameSwitcher.exe` |
 | `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portable ZIP and checksums |
 | `.github/workflows/` | Checks on every push; releases are built and published by GitHub Actions when a version tag is pushed |
 
@@ -87,7 +89,7 @@ Settings, play time and logs are stored in `%AppData%\GameSwitcher` (`settings.j
 powershell -ExecutionPolicy Bypass -File .\app\Install.ps1
 ```
 
-builds `GameSwitcher.exe` with the C# compiler that ships with Windows and sets up autostart. `.\Release.ps1` builds the setup and ZIP locally (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` runs the same checks as GitHub Actions.
+builds `GameSwitcher.exe` and sets up autostart. Building needs the [.NET SDK](https://dotnet.microsoft.com/download) (6 or newer, only for building – the program itself runs on the .NET Framework built into Windows; no internet or packages needed). `.\Release.ps1` builds the setup and ZIP locally (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)); `.\tools\Test-Project.ps1` runs the same checks as GitHub Actions.
 
 ### Adding a language
 
@@ -97,7 +99,7 @@ Copy `app/lang/en.json`, name it after the two-letter language code (e.g. `nl.js
 - Some functions use undocumented but long-stable Windows interfaces: switching the audio device (`IPolicyConfig`), SDR brightness and night light. If Windows changes them, the affected action stops working; everything else keeps running.
 - "Turn off other monitors" keeps the monitor showing the main desktop and afterwards restores the last extended layout Windows remembers.
 - Restarted programs start without their original command-line arguments.
-- `GameSwitcher.exe` is not code-signed. Some antivirus programs are wary of executables that host PowerShell; the full source is in `src/Launcher.cs`.
+- `GameSwitcher.exe` is not code-signed. The background service no longer runs PowerShell, but the window still does, which some antivirus programs are wary of; the full source is in `src/` and `app/`.
 - The update check only contacts `api.github.com`.
 
 ## License

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0
+
+- **Background service rewritten in C#:** about half the memory (≈ 35 MB instead of ≈ 70 MB private memory) and a fraction of the CPU time of the PowerShell version, fewer threads, and no PowerShell running in the background – which also makes antivirus false alarms less likely.
+- Still a single small `GameSwitcher.exe` (about 110 KB) on the .NET Framework built into Windows – no runtime to install.
+- Same settings, profiles, translations and crash-safe state as before; updating keeps everything. The window is unchanged (still PowerShell for now).
+- Building no longer needs any packages or internet (.NET SDK only).
+
 ## 2.2.0
 
 - **Setup program:** `GameSwitcher-Setup-<version>.exe` installs GameSwitcher per user (no administrator rights), adds a Start menu entry and an entry under Windows Settings → Apps with a proper uninstaller. Running a newer setup updates in place.

@@ -143,7 +143,7 @@ function Get-WindowsGames {
 
 #region Settings
 
-. (Join-Path $root 'Actions.ps1')
+. (Join-Path $root 'Settings.ps1')
 
 $selected = @{}                 # Key -> @{Key; Name; Exes}
 $profiles = @{}                 # Key -> action set of games with their own profile
@@ -700,8 +700,7 @@ function Update-CheckSizes($Parent) {
 #region Status displays
 
 function Get-WatcherProcesses {
-    Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='GameSwitcher.exe'" |
-        Where-Object { $_.CommandLine -like '*Watcher.ps1*' -or $_.CommandLine -like '*--watcher*' }
+    Get-CimInstance Win32_Process -Filter "Name='GameSwitcher.exe'" | Where-Object { $_.CommandLine -like '*--watcher*' }
 }
 
 function Update-ServiceState { $script:serviceRunning = [bool](Get-WatcherProcesses) }
@@ -1345,13 +1344,9 @@ function Invoke-FirstRunSetup {
     }
 }
 
+# The background service is part of GameSwitcher.exe (C#, src\Watcher.cs)
 function Start-Watcher {
-    $exe = Join-Path $InstallDir 'GameSwitcher.exe'
-    if (Test-Path $exe) { Start-Process $exe -ArgumentList '--watcher' }
-    else {
-        # conhost --headless: no console window, even with Windows Terminal as the default
-        Start-Process conhost.exe -ArgumentList "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $root 'Watcher.ps1')`""
-    }
+    Start-Process (Join-Path $InstallDir 'GameSwitcher.exe') -ArgumentList '--watcher'
 }
 
 #endregion
