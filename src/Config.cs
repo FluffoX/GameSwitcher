@@ -67,6 +67,11 @@ namespace GameSwitcher
 
         public Dictionary<string, object> this[string action] => a[action];
 
+        // The raw values, as written to settings.json
+        public Dictionary<string, Dictionary<string, object>> Values => a;
+
+        public ActionSet Clone() => new ActionSet(Json.Clone(a));
+
         public bool On(string action) => a[action].Bool("Enabled");
         public bool Revert(string action) => a[action].Bool("Revert", true);
 

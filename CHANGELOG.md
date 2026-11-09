@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0
+
+- **The window is now C# as well:** GameSwitcher no longer contains any PowerShell. Same window, same features, same settings – it just starts faster and needs less memory.
+- **Clean shutdown:** "Stop service", updates and uninstalling now ask the background service to revert its changes and exit, instead of ending it forcibly.
+- `GameSwitcher.exe --install` / `--uninstall` / `--stop` for autostart, removal and stopping the service; the uninstaller uses them.
+- The program folder only contains `GameSwitcher.exe`, the translations and the icon.
+
 ## 2.3.0
 
 - **Background service rewritten in C#:** about half the memory (≈ 35 MB instead of ≈ 70 MB private memory) and a fraction of the CPU time of the PowerShell version, fewer threads, and no PowerShell running in the background – which also makes antivirus false alarms less likely.

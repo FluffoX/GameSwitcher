@@ -21,7 +21,7 @@ namespace GameSwitcher
     {
         public static int Run()
         {
-            using (var mutex = new Mutex(true, @"Local\GameSwitcherWatcher", out bool createdNew))
+            using (var mutex = new Mutex(true, Autostart.ServiceMutex, out bool createdNew))
             {
                 if (!createdNew) return 0;   // already running
                 Log.Trim();
@@ -40,7 +40,6 @@ namespace GameSwitcher
         readonly ToolStripMenuItem miStatus, miOpen, miHdr, miManual, miPause, miPause1, miPause2, miPauseReboot, miResume, miExit;
         readonly HotkeyWindow hotkey = new HotkeyWindow();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 1000 };
-        readonly DateTime bootTime = GetBootTime();
 
         Config config = new Config();
         DateTime? configTime;
@@ -84,6 +83,7 @@ namespace GameSwitcher
             RecoverPendingState();
 
             tray.Visible = true;
+            ListenForExitRequest();
             timer.Tick += (s, e) => Tick();
             timer.Start();
             Tick();
@@ -118,7 +118,7 @@ namespace GameSwitcher
                 hotkey.Unregister();
                 if (hotkeyText.Length > 0 && !hotkey.Register(hotkeyText)) Log.Write(T("log.hotkeyFailed", hotkeyText));
             }
-            UpdateTrayTexts(GetPause());
+            UpdateTrayTexts(Pause.Get());
         }
 
         static Dictionary<string, GameRef> MapByExe(IEnumerable<GameRef> games)
@@ -159,54 +159,14 @@ namespace GameSwitcher
 
         #region Pause
 
-        static DateTime GetBootTime()
-        {
-            try
-            {
-                using (var searcher = new ManagementObjectSearcher("SELECT LastBootUpTime FROM Win32_OperatingSystem"))
-                    foreach (ManagementObject os in searcher.Get())
-                        return ManagementDateTimeConverter.ToDateTime((string)os["LastBootUpTime"]);
-            }
-            catch { }
-            return DateTime.Now - TimeSpan.FromMilliseconds(Environment.TickCount);
-        }
-
-        static DateTime? ParseDate(string s) =>
-            DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime d) ? d.ToLocalTime() : (DateTime?)null;
-
-        // pause.json is shared with the GUI: { "Until": "<ISO time>" } or { "UntilReboot": true, "BootTime": "<ISO time>" }
-        Dictionary<string, object> GetPause()
-        {
-            string path = Paths.Data("pause.json");
-            var p = Json.ReadFile(path);
-            if (p == null) return null;
-            if (p.Bool("UntilReboot") && ParseDate(p.Str("BootTime")) is DateTime boot && Math.Abs((boot - bootTime).TotalSeconds) < 5) return p;
-            if (ParseDate(p.Str("Until")) is DateTime until && until > DateTime.Now) return p;
-            try { File.Delete(path); } catch { }   // expired
-            return null;
-        }
-
         void SetPause(int hours, bool untilReboot = false, bool resume = false)
         {
-            string path = Paths.Data("pause.json");
-            if (resume)
-            {
-                try { File.Delete(path); } catch { }
-                Log.Write(T("log.resumed"));
-            }
-            else
-            {
-                var p = untilReboot
-                    ? new Dictionary<string, object> { ["UntilReboot"] = true, ["BootTime"] = bootTime.ToString("o") }
-                    : new Dictionary<string, object> { ["Until"] = DateTime.Now.AddHours(hours).ToString("o") };
-                Json.WriteFile(path, p);
-                Log.Write(T("log.paused"));
-            }
+            if (resume) { Pause.Clear(); Log.Write(T("log.resumed")); }
+            else { Pause.Set(hours, untilReboot); Log.Write(T("log.paused")); }
             Tick();
         }
 
         #endregion
-
         #region Play time
 
         void AddPlaytime(string key, string name, double seconds)
@@ -297,7 +257,7 @@ namespace GameSwitcher
                 List<GameRef> running = GetRunningGames();
                 UpdatePlaytime(running);
                 if (manual) running.Insert(0, ManualGame);
-                var paused = GetPause();
+                var paused = Pause.Get();
                 if (paused != null) running.Clear();
 
                 if (running.Count > 0 && active == null) StartSession(running[0]);
@@ -354,7 +314,7 @@ namespace GameSwitcher
             miExit.Text = T("tray.exit");
 
             if (paused != null)
-                miStatus.Text = paused.Bool("UntilReboot") ? T("pause.untilReboot") : T("pause.until", ParseDate(paused.Str("Until"))?.ToString("t"));
+                miStatus.Text = Pause.Describe(paused);
             else if (active != null)
                 miStatus.Text = T("tray.active", active == ManualGame ? T("tray.manual") : active.Name);
             else
@@ -381,6 +341,16 @@ namespace GameSwitcher
             catch (Exception ex) { Log.Write(T("log.hdrError", ex.Message)); }
         }
 
+// The window ("Stop service") and the uninstaller signal this event: revert and exit cleanly
+        readonly EventWaitHandle exitRequest = new EventWaitHandle(false, EventResetMode.AutoReset, Autostart.ServiceExitEvent);
+        readonly Control invoker = new Control();
+
+        void ListenForExitRequest()
+        {
+            invoker.CreateControl();
+            ThreadPool.RegisterWaitForSingleObject(exitRequest, (s, timedOut) => invoker.BeginInvoke((Action)ExitService), null, -1, true);
+        }
+
         void ExitService()
         {
             timer.Stop();
@@ -398,6 +368,8 @@ namespace GameSwitcher
                 tray.Dispose();
                 menu.Dispose();
                 hotkey.Dispose();
+                exitRequest.Dispose();
+                invoker.Dispose();
             }
             base.Dispose(disposing);
         }

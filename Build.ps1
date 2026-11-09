@@ -1,7 +1,7 @@
 ﻿# Builds GameSwitcher.exe from src\*.cs.
 # Uses the modern C# compiler (Roslyn) from the .NET SDK, but targets the .NET Framework 4.8 that ships
 # with Windows 10/11: users need no runtime, and the build needs no internet or packages.
-# Version, company and copyright shown in the file properties come from app\AppInfo.ps1.
+# Version, company and copyright are shown in the file properties; the version comes from src\AppInfo.cs.
 param([string]$Out = (Join-Path $PSScriptRoot 'GameSwitcher.exe'))
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -15,14 +15,13 @@ $sdk = & $dotnet --list-sdks | ForEach-Object { if ($_ -match '^(\S+) \[(.+)\]$'
 $csc = Join-Path $sdk.Path 'Roslyn\bincore\csc.dll'
 if (-not (Test-Path $csc)) { throw "C# compiler not found in $($sdk.Path)." }
 
-# .NET Framework 4.8 assemblies of Windows, and System.Management.Automation of Windows PowerShell 5.1
+# .NET Framework 4.8 assemblies of Windows
 $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
-$refs = 'mscorlib', 'System', 'System.Core', 'System.Drawing', 'System.Windows.Forms', 'System.Web.Extensions', 'System.Management' |
+$refs = 'mscorlib', 'System', 'System.Core', 'System.Drawing', 'System.Windows.Forms', 'System.Web.Extensions', 'System.Management', 'Microsoft.CSharp' |
     ForEach-Object { "/reference:$(Join-Path $fw "$_.dll")" }
-$refs += "/reference:$([PSObject].Assembly.Location)"
 
-$version = ([regex]::Match((Get-Content (Join-Path $root 'app\AppInfo.ps1') -Raw), "AppVersion = '([\d.]+)'")).Groups[1].Value
-if (-not $version) { throw 'AppVersion not found in app\AppInfo.ps1.' }
+$version = ([regex]::Match((Get-Content (Join-Path $root 'src\AppInfo.cs') -Raw), 'Version = "([\d.]+)"')).Groups[1].Value
+if (-not $version) { throw 'Version not found in src\AppInfo.cs.' }
 $versionInfo = Join-Path $env:TEMP "GameSwitcherVersion-$PID.cs"
 @"
 using System.Reflection;

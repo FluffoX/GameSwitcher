@@ -71,6 +71,21 @@ namespace GameSwitcher.Native
             return new DisplayMode { Width = dm.dmPelsWidth, Height = dm.dmPelsHeight, Hz = dm.dmDisplayFrequency };
         }
 
+        // All distinct resolution/refresh combinations of the primary display, largest first
+        public static List<DisplayMode> All()
+        {
+            string device = PrimaryDevice();
+            var result = new List<DisplayMode>();
+            var seen = new HashSet<string>();
+            DEVMODE dm = NewDevMode();
+            for (int i = 0; EnumDisplaySettings(device, i, ref dm); i++)
+            {
+                if (dm.dmBitsPerPel < 32 || !seen.Add(dm.dmPelsWidth + "x" + dm.dmPelsHeight + "@" + dm.dmDisplayFrequency)) continue;
+                result.Add(new DisplayMode { Width = dm.dmPelsWidth, Height = dm.dmPelsHeight, Hz = dm.dmDisplayFrequency });
+            }
+            return result.OrderByDescending(m => m.Width).ThenByDescending(m => m.Height).ThenByDescending(m => m.Hz).ToList();
+        }
+
         // Changes the mode dynamically (not saved permanently, so a restart always brings back the normal mode)
         public static void Set(int width, int height, int hz)
         {

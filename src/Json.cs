@@ -33,6 +33,12 @@ namespace GameSwitcher
         public static void WriteFile(string path, object value) =>
             File.WriteAllText(path, NewSerializer().Serialize(value), new UTF8Encoding(false));
 
+        public static Dictionary<string, object> Parse(string json) =>
+            NewSerializer().DeserializeObject(json) as Dictionary<string, object>;
+
+        // Deep copy through JSON
+        public static Dictionary<string, object> Clone(object value) => Parse(NewSerializer().Serialize(value));
+
         // Typed access with defaults
         public static object Get(this IDictionary<string, object> d, string key) =>
             d != null && d.TryGetValue(key, out object v) ? v : null;

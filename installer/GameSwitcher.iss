@@ -71,15 +71,19 @@ Filename: "{sys}\schtasks.exe"; Parameters: "/Run /TN GameSwitcher"; Flags: runh
 Filename: "{app}\GameSwitcher.exe"; Description: "{cm:LaunchProgram,GameSwitcher}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
+; stop the service cleanly (it reverts its changes), remove autostart and the Start menu entry, then close the window
+Filename: "{app}\GameSwitcher.exe"; Parameters: "--uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveAutostart"
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM GameSwitcher.exe"; Flags: runhidden; RunOnceId: "StopApp"
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\app\Install.ps1"" -Uninstall"; Flags: runhidden; RunOnceId: "RemoveAutostart"
 
 [Code]
-// Close a running GameSwitcher (GUI and background service) before files are replaced
+// Close a running GameSwitcher before files are replaced: the service is asked to stop cleanly first
+// (so it reverts its changes), whatever is left - e.g. an open window - is closed afterwards
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
+  if FileExists(ExpandConstant('{app}\GameSwitcher.exe')) then
+    Exec(ExpandConstant('{app}\GameSwitcher.exe'), '--stop', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM GameSwitcher.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(500);
   Result := '';

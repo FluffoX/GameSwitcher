@@ -1,5 +1,6 @@
 ﻿# Checks run by GitHub Actions on every push (and usable locally):
-# PowerShell syntax, translations (complete keys, matching placeholders) and PSScriptAnalyzer errors.
+# syntax of the build scripts, translations (complete keys, matching placeholders), text keys used in the
+# C# code and PSScriptAnalyzer errors. Compiling (Build.ps1) checks the C# code itself.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 $failed = 0
@@ -27,15 +28,15 @@ foreach ($f in Get-ChildItem $langDir -Filter *.json) {
     }
 }
 
-# Every text key used in the scripts (T 'key') and in the C# code (T("key")) exists in English
-$used = @(Select-String -Path (Join-Path $root 'app\*.ps1') -Pattern "\bT '([a-zA-Z]+\.[a-zA-Z0-9]+)'" -AllMatches) +
-        @(Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.cs | Select-String -Pattern '\bT\("([a-zA-Z]+\.[a-zA-Z0-9]+)"' -AllMatches) |
+# Every text key used in the C# code (T("key")) exists in English
+$used = Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.cs | Select-String -Pattern '\bT\("([a-zA-Z]+\.[a-zA-Z0-9]+)"' -AllMatches |
     ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 foreach ($k in $used) { if ($enKeys -notcontains $k) { Write-Host "UNKNOWN KEY  $k"; $failed++ } }
 
 # PSScriptAnalyzer (errors only), if the module is available
 if (Get-Module -ListAvailable PSScriptAnalyzer) {
-    $issues = Invoke-ScriptAnalyzer -Path (Join-Path $root 'app') -Recurse -Severity Error
+    $issues = @(Get-ChildItem $root -Recurse -Filter *.ps1 | Where-Object FullName -notmatch '\\dist\\' |
+        ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Error })
     foreach ($i in $issues) { Write-Host "ANALYZER $($i.ScriptName):$($i.Line)  $($i.RuleName)  $($i.Message)"; $failed++ }
 } else {
     Write-Host 'PSScriptAnalyzer not installed - skipped.'

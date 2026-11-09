@@ -9,8 +9,8 @@
 param([string]$Tag)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$version = ([regex]::Match((Get-Content (Join-Path $root 'app\AppInfo.ps1') -Raw), "AppVersion = '([\d.]+)'")).Groups[1].Value
-if ($Tag -and $Tag -ne "v$version") { throw "Tag $Tag does not match AppVersion $version in app\AppInfo.ps1." }
+$version = ([regex]::Match((Get-Content (Join-Path $root 'src\AppInfo.cs') -Raw), 'Version = "([\d.]+)"')).Groups[1].Value
+if ($Tag -and $Tag -ne "v$version") { throw "Tag $Tag does not match version $version in src\AppInfo.cs." }
 
 function Write-Utf8([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding $false)) }
 
