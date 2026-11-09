@@ -68,12 +68,26 @@ interface IPolicyConfig {
 [StructLayout(LayoutKind.Sequential)] struct PROPERTYKEY { public Guid fmtid; public int pid; }
 [StructLayout(LayoutKind.Sequential)] struct PROPVARIANT { public ushort vt; public ushort r1, r2, r3; public IntPtr p1; public IntPtr p2; }
 
+[ComImport, Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioEndpointVolume {
+    [PreserveSig] int RegisterControlChangeNotify(IntPtr notify);
+    [PreserveSig] int UnregisterControlChangeNotify(IntPtr notify);
+    [PreserveSig] int GetChannelCount(out uint count);
+    [PreserveSig] int SetMasterVolumeLevel(float levelDb, ref Guid context);
+    [PreserveSig] int SetMasterVolumeLevelScalar(float level, ref Guid context);
+    [PreserveSig] int GetMasterVolumeLevel(out float levelDb);
+    [PreserveSig] int GetMasterVolumeLevelScalar(out float level);
+}
+
 [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCom {}
 [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")] class PolicyConfigCom {}
 
 public static class AudioNative {
+    public const int Output = 0, Input = 1;   // EDataFlow: eRender, eCapture
     const int eRender = 0;
-    const int eConsole = 0, eMultimedia = 1;
+    const int eConsole = 0, eMultimedia = 1, eCommunications = 2;
+    const int CLSCTX_ALL = 23;
+    static readonly Guid VolumeIid = new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
     const int DEVICE_STATE_ACTIVE = 1;
     const ushort VT_LPWSTR = 31;
     static readonly Guid FriendlyNameFmt = new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0");
@@ -93,24 +107,29 @@ public static class AudioNative {
         return name;
     }
 
-    public static string GetDefaultOutputId() {
+    public static string GetDefaultId(int flow) {
         IMMDevice device;
-        if (Enumerator().GetDefaultAudioEndpoint(eRender, eConsole, out device) != 0) return null;
+        if (Enumerator().GetDefaultAudioEndpoint(flow, eConsole, out device) != 0) return null;
         string id; device.GetId(out id);
         return id;
     }
 
-    public static string GetDefaultOutputName() {
+    public static string GetDefaultName(int flow) {
         IMMDevice device;
-        if (Enumerator().GetDefaultAudioEndpoint(eRender, eConsole, out device) != 0) return null;
+        if (Enumerator().GetDefaultAudioEndpoint(flow, eConsole, out device) != 0) return null;
         return GetName(device);
     }
 
-    public static List<AudioDevice> GetOutputDevices() {
+    public static string GetDefaultOutputId() { return GetDefaultId(Output); }
+    public static string GetDefaultOutputName() { return GetDefaultName(Output); }
+    public static List<AudioDevice> GetOutputDevices() { return GetDevices(Output); }
+    public static void SetDefaultOutput(string id) { SetDefault(id, false); }
+
+    public static List<AudioDevice> GetDevices(int flow) {
         List<AudioDevice> result = new List<AudioDevice>();
-        string defaultId = GetDefaultOutputId();
+        string defaultId = GetDefaultId(flow);
         IMMDeviceCollection devices;
-        if (Enumerator().EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, out devices) != 0) return result;
+        if (Enumerator().EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, out devices) != 0) return result;
         int count; devices.GetCount(out count);
         for (int i = 0; i < count; i++) {
             IMMDevice device;
@@ -125,17 +144,46 @@ public static class AudioNative {
         return result;
     }
 
-    // Sets the device as default for games/media (like "Set as default" in Windows)
-    public static void SetDefaultOutput(string id) {
+    // Sets the device as default for games/media (like "Set as default" in Windows);
+    // microphones also become the default for voice chat (communications)
+    public static void SetDefault(string id, bool includeCommunications) {
         IPolicyConfig policy = (IPolicyConfig)new PolicyConfigCom();
         int err = policy.SetDefaultEndpoint(id, eConsole);
         if (err == 0) err = policy.SetDefaultEndpoint(id, eMultimedia);
+        if (err == 0 && includeCommunications) err = policy.SetDefaultEndpoint(id, eCommunications);
         if (err != 0) throw new Exception("Could not switch the audio device (error 0x" + err.ToString("X8") + ").");
+    }
+
+    static IAudioEndpointVolume DefaultOutputVolume() {
+        IMMDevice device;
+        if (Enumerator().GetDefaultAudioEndpoint(eRender, eConsole, out device) != 0) return null;
+        Guid iid = VolumeIid;
+        object o;
+        if (device.Activate(ref iid, CLSCTX_ALL, IntPtr.Zero, out o) != 0) return null;
+        return (IAudioEndpointVolume)o;
+    }
+
+    // Master volume of the default output device, 0..100 (-1 if unavailable)
+    public static int GetVolume() {
+        IAudioEndpointVolume v = DefaultOutputVolume();
+        float level;
+        if (v == null || v.GetMasterVolumeLevelScalar(out level) != 0) return -1;
+        return (int)Math.Round(level * 100);
+    }
+
+    public static void SetVolume(int percent) {
+        IAudioEndpointVolume v = DefaultOutputVolume();
+        if (v == null) throw new Exception("No audio output device.");
+        Guid ctx = Guid.Empty;
+        int err = v.SetMasterVolumeLevelScalar(Math.Max(0, Math.Min(100, percent)) / 100f, ref ctx);
+        if (err != 0) throw new Exception("Could not set the volume (error 0x" + err.ToString("X8") + ").");
     }
 }
 '@
 }
 
 if ($Action -eq 'list') {
-    [AudioNative]::GetOutputDevices() | Format-Table Name, IsDefault, Id -AutoSize
+    'Output:'; [AudioNative]::GetDevices([AudioNative]::Output) | Format-Table Name, IsDefault, Id -AutoSize
+    'Input:'; [AudioNative]::GetDevices([AudioNative]::Input) | Format-Table Name, IsDefault, Id -AutoSize
+    "Volume: $([AudioNative]::GetVolume()) %"
 }

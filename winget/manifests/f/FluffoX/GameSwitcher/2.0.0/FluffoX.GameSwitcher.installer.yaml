@@ -1,0 +1,14 @@
+PackageIdentifier: FluffoX.GameSwitcher
+PackageVersion: 2.0.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: GameSwitcher.exe
+    PortableCommandAlias: gameswitcher
+ArchiveBinariesDependOnPath: true
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/FluffoX/GameSwitcher/releases/download/v2.0.0/GameSwitcher-2.0.0.zip
+    InstallerSha256: 91BFC715267C31BBFD01A596A01E80D58957EA9A0D62DFA2990AA77E1DE35127
+ManifestType: installer
+ManifestVersion: 1.6.0

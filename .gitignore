@@ -1,5 +1,13 @@
 # Personal data, created locally
 settings.json
-games.txt
+state.json
+pause.json
+playtime.json
 watcher.log
+error.log
+games.txt
 *.lnk
+
+# Build output (GameSwitcher.exe is built by Build.ps1 / Install.ps1 and shipped in the release ZIP)
+GameSwitcher.exe
+dist/
