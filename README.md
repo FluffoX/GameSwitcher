@@ -45,17 +45,21 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 
 ## Installation
 
-**Release (recommended):** download `GameSwitcher-<version>.zip` from [Releases](https://github.com/FluffoX/GameSwitcher/releases), extract it to a folder of your choice and run once:
+1. Download `GameSwitcher-<version>.zip` from [Releases](https://github.com/FluffoX/GameSwitcher/releases) and extract it to a folder of your choice (e.g. `C:\Tools\GameSwitcher`).
+2. Start **GameSwitcher.exe**. On the first start GameSwitcher asks whether it should start with Windows – answer **Yes**. This sets up autostart and a Start menu entry.
+3. Check your games and choose on the right what should happen when a game starts. Done.
+
+> Windows may show *"Windows protected your PC"* on the first start because the program is not code-signed. Click **More info → Run anyway**.
+
+Autostart can be switched on or off later under **Settings…**. To remove GameSwitcher completely, turn off autostart there and delete the folder (or run `.\Install.ps1 -Uninstall`).
+
+**From source:** clone the repository and run once:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Install.ps1
 ```
 
-This sets up the background service at logon and adds GameSwitcher to the Start menu. Then open **GameSwitcher**, check your games and choose on the right what should happen when a game starts.
-
-**From source:** clone the repository and run the same command – `Install.ps1` builds `GameSwitcher.exe` with the C# compiler that ships with Windows.
-
-Uninstall: `.\Install.ps1 -Uninstall`
+`Install.ps1` builds `GameSwitcher.exe` with the C# compiler that ships with Windows and sets up autostart and the Start menu entry.
 
 ## How it works
 

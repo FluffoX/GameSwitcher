@@ -174,5 +174,7 @@
   "log.manualStop": "Mode jeu manuel arrêté",
   "log.paused": "En pause",
   "log.resumed": "Reprise",
-  "log.hotkeyFailed": "Impossible d'enregistrer le raccourci {0} (déjà utilisé ?)"
+  "log.hotkeyFailed": "Impossible d'enregistrer le raccourci {0} (déjà utilisé ?)",
+  "setup.title": "Bienvenue dans GameSwitcher",
+  "setup.text": "GameSwitcher fonctionne en arrière-plan et modifie vos réglages dès que vous lancez un jeu.\n\nGameSwitcher doit-il démarrer automatiquement avec Windows ? Une entrée sera aussi ajoutée au menu Démarrer. Vous pourrez modifier ce choix plus tard dans les paramètres.\n\nOui = démarrer avec Windows (recommandé)\nNon = seulement jusqu'au prochain redémarrage"
 }

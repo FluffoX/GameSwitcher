@@ -174,5 +174,7 @@
   "log.manualStop": "Manueller Spielmodus beendet",
   "log.paused": "Pausiert",
   "log.resumed": "Fortgesetzt",
-  "log.hotkeyFailed": "Tastenkürzel {0} konnte nicht registriert werden (schon belegt?)"
+  "log.hotkeyFailed": "Tastenkürzel {0} konnte nicht registriert werden (schon belegt?)",
+  "setup.title": "Willkommen bei GameSwitcher",
+  "setup.text": "GameSwitcher läuft im Hintergrund und schaltet deine Einstellungen um, sobald du ein Spiel startest.\n\nSoll GameSwitcher automatisch mit Windows starten? Dabei wird auch ein Eintrag im Startmenü angelegt. Du kannst das später unter Einstellungen ändern.\n\nJa = mit Windows starten (empfohlen)\nNein = nur bis zum nächsten Neustart"
 }

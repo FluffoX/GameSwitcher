@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0
+
+- **Setup on first start:** unpack the ZIP and start GameSwitcher.exe – the app asks whether it should start with Windows and sets up autostart and a Start menu entry itself. No PowerShell command needed anymore.
+- Opening GameSwitcher always makes sure the background service is running.
+
 ## 2.0.0
 
 - **Per-game profiles:** a default profile for all games, and any game can get its own settings.

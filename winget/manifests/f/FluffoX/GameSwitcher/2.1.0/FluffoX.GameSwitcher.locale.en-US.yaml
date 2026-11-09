@@ -1,0 +1,19 @@
+PackageIdentifier: FluffoX.GameSwitcher
+PackageVersion: 2.1.0
+PackageLocale: en-US
+Publisher: FluffoX
+PublisherUrl: https://github.com/FluffoX
+PackageName: GameSwitcher
+PackageUrl: https://github.com/FluffoX/GameSwitcher
+License: MIT
+LicenseUrl: https://github.com/FluffoX/GameSwitcher/blob/main/LICENSE
+ShortDescription: Automatically switches HDR, audio, display mode, power plan and programs when a game starts on Windows 11.
+Tags:
+  - hdr
+  - gaming
+  - audio
+  - windows-11
+  - automation
+ReleaseNotesUrl: https://github.com/FluffoX/GameSwitcher/releases/tag/v2.1.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

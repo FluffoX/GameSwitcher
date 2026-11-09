@@ -149,7 +149,7 @@ $profiles = @{}                 # Key -> action set of games with their own prof
 $customFolders = New-Object System.Collections.ArrayList
 $customExes = New-Object System.Collections.ArrayList
 $games = @()
-$options = @{ AutoDetect = $false; Hotkey = 'Ctrl+Alt+G'; Notifications = $true; Theme = 'system'; CheckUpdates = $true }
+$options = @{ AutoDetect = $false; Hotkey = 'Ctrl+Alt+G'; Notifications = $true; Theme = 'system'; CheckUpdates = $true; SetupDone = $false }
 
 $s = Read-Settings
 $actions = Complete-Actions $s.Actions
@@ -171,7 +171,7 @@ function Save-All {
         Selected = @($selected.Values); Profiles = $profiles; Actions = $actions
         CustomFolders = @($customFolders); CustomExes = @($customExes); Language = $script:language
         AutoDetect = $options.AutoDetect; Hotkey = $options.Hotkey; Notifications = $options.Notifications
-        Theme = $options.Theme; CheckUpdates = $options.CheckUpdates
+        Theme = $options.Theme; CheckUpdates = $options.CheckUpdates; SetupDone = $options.SetupDone
         # all found games, so the watcher's automatic detection uses the same keys as this list
         Library = @($games | Where-Object Source -ne 'Missing' | ForEach-Object { @{ Key = $_.Key; Name = $_.Name; Exes = $_.Exes } })
     } | ConvertTo-Json -Depth 8 | Set-Content $settingsPath -Encoding UTF8
@@ -301,7 +301,9 @@ public static class WinNative {
 # Only one window: bring an already open one to the front
 if (-not $Demo) {
     $guiCreated = $false
-    $guiMutex = New-Object System.Threading.Mutex($true, 'Local\GameSwitcherGui', [ref]$guiCreated)
+    # one window per installation folder
+    $folderId = [BitConverter]::ToString([Security.Cryptography.MD5]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($root.ToLower()))).Replace('-', '')
+    $guiMutex = New-Object System.Threading.Mutex($true, "Local\GameSwitcherGui-$folderId", [ref]$guiCreated)
     if (-not $guiCreated) {
         $h = [WinNative]::FindWindow($null, 'GameSwitcher')
         if ($h -ne [IntPtr]::Zero) { [void][WinNative]::ShowWindow($h, 9); [void][WinNative]::SetForegroundWindow($h) }
@@ -1320,6 +1322,28 @@ function Show-SettingsDialog {
     $dlg.Dispose()
 }
 
+# First start: offer autostart and a Start menu entry (Install.ps1), so that unpacking the ZIP and
+# starting GameSwitcher.exe is all it takes. Opening the app always makes sure the service runs.
+function Invoke-FirstRunSetup {
+    if ($Demo) { return }
+    if (-not $options.SetupDone) {
+        $options.SetupDone = $true
+        if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+            $answer = [System.Windows.Forms.MessageBox]::Show($form, (T 'setup.text'), (T 'setup.title'), 'YesNo', 'Question')
+            if ($answer -eq 'Yes') {
+                try { & (Join-Path $root 'Install.ps1') | Out-Null }
+                catch { [void][System.Windows.Forms.MessageBox]::Show($form, (T 'dlg.autostartError' $_.Exception.Message), (T 'opt.autostart')) }
+                Start-Sleep -Milliseconds 1500
+            }
+        }
+        Save-All
+    }
+    if (-not (Get-WatcherProcesses)) {
+        Start-Watcher
+        Start-Sleep -Milliseconds 1500
+    }
+}
+
 function Start-Watcher {
     $exe = Join-Path $root 'GameSwitcher.exe'
     if (Test-Path $exe) { Start-Process $exe -ArgumentList '--watcher' }
@@ -1527,8 +1551,10 @@ $form.Add_Shown({
     Update-AudioLabel
     Update-Hdr
     Update-PauseLabel
-    Update-ServiceState
     Invoke-Scan
+    Invoke-FirstRunSetup
+    Update-ServiceState
+    Update-Status
     Update-Running
     if ($options.CheckUpdates) { Start-UpdateCheck }
     $timer.Start()

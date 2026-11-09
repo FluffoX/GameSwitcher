@@ -174,5 +174,7 @@
   "log.manualStop": "Modo de jogo manual encerrado",
   "log.paused": "Pausado",
   "log.resumed": "Retomado",
-  "log.hotkeyFailed": "Não foi possível registrar o atalho {0} (já está em uso?)"
+  "log.hotkeyFailed": "Não foi possível registrar o atalho {0} (já está em uso?)",
+  "setup.title": "Bem-vindo ao GameSwitcher",
+  "setup.text": "O GameSwitcher roda em segundo plano e alterna suas configurações assim que você inicia um jogo.\n\nO GameSwitcher deve iniciar automaticamente com o Windows? Também será adicionada uma entrada no menu Iniciar. Você pode mudar isso depois em Configurações.\n\nSim = iniciar com o Windows (recomendado)\nNão = somente até a próxima reinicialização"
 }

@@ -174,5 +174,7 @@
   "log.manualStop": "Manual game mode stopped",
   "log.paused": "Paused",
   "log.resumed": "Resumed",
-  "log.hotkeyFailed": "Hotkey {0} could not be registered (already in use?)"
+  "log.hotkeyFailed": "Hotkey {0} could not be registered (already in use?)",
+  "setup.title": "Welcome to GameSwitcher",
+  "setup.text": "GameSwitcher runs in the background and switches your settings as soon as you start a game.\n\nShould GameSwitcher start automatically with Windows? A Start menu entry will be added as well. You can change this later under Settings.\n\nYes = start with Windows (recommended)\nNo = run only until the next restart"
 }

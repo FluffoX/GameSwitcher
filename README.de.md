@@ -45,17 +45,21 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 
 ## Installation
 
-**Release (empfohlen):** `GameSwitcher-<version>.zip` unter [Releases](https://github.com/FluffoX/GameSwitcher/releases) herunterladen, in einen beliebigen Ordner entpacken und einmalig ausführen:
+1. `GameSwitcher-<version>.zip` unter [Releases](https://github.com/FluffoX/GameSwitcher/releases) herunterladen und in einen beliebigen Ordner entpacken (z. B. `C:\Tools\GameSwitcher`).
+2. **GameSwitcher.exe** starten. Beim ersten Start fragt GameSwitcher, ob es mit Windows starten soll – mit **Ja** beantworten. Damit werden Autostart und ein Eintrag im Startmenü eingerichtet.
+3. Spiele anhaken und rechts festlegen, was beim Spielstart passieren soll. Fertig.
+
+> Beim ersten Start kann Windows *„Der Computer wurde durch Windows geschützt“* anzeigen, weil das Programm nicht code-signiert ist. Auf **Weitere Informationen → Trotzdem ausführen** klicken.
+
+Der Autostart lässt sich später unter **Einstellungen…** ein- und ausschalten. Zum vollständigen Entfernen dort den Autostart abschalten und den Ordner löschen (oder `.\Install.ps1 -Uninstall` ausführen).
+
+**Aus dem Quellcode:** Repository klonen und einmalig ausführen:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Install.ps1
 ```
 
-Das richtet den Hintergrunddienst bei der Anmeldung ein und legt GameSwitcher im Startmenü ab. Danach **GameSwitcher** öffnen, Spiele anhaken und rechts festlegen, was beim Spielstart passieren soll.
-
-**Aus dem Quellcode:** Repository klonen und denselben Befehl ausführen – `Install.ps1` baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist.
-
-Deinstallieren: `.\Install.ps1 -Uninstall`
+`Install.ps1` baut `GameSwitcher.exe` mit dem C#-Compiler, der in Windows enthalten ist, und richtet Autostart und Startmenü-Eintrag ein.
 
 ## Funktionsweise
 

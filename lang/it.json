@@ -174,5 +174,7 @@
   "log.manualStop": "Modalità gioco manuale terminata",
   "log.paused": "In pausa",
   "log.resumed": "Ripreso",
-  "log.hotkeyFailed": "Impossibile registrare la scorciatoia {0} (già in uso?)"
+  "log.hotkeyFailed": "Impossibile registrare la scorciatoia {0} (già in uso?)",
+  "setup.title": "Benvenuto in GameSwitcher",
+  "setup.text": "GameSwitcher funziona in background e cambia le tue impostazioni non appena avvii un gioco.\n\nVuoi che GameSwitcher si avvii automaticamente con Windows? Verrà aggiunta anche una voce al menu Start. Puoi modificarlo in seguito nelle impostazioni.\n\nSì = avvia con Windows (consigliato)\nNo = solo fino al prossimo riavvio"
 }

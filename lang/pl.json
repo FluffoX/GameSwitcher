@@ -174,5 +174,7 @@
   "log.manualStop": "Ręczny tryb gry zakończony",
   "log.paused": "Wstrzymano",
   "log.resumed": "Wznowiono",
-  "log.hotkeyFailed": "Nie udało się zarejestrować skrótu {0} (już zajęty?)"
+  "log.hotkeyFailed": "Nie udało się zarejestrować skrótu {0} (już zajęty?)",
+  "setup.title": "Witaj w GameSwitcher",
+  "setup.text": "GameSwitcher działa w tle i przełącza ustawienia, gdy tylko uruchomisz grę.\n\nCzy GameSwitcher ma uruchamiać się automatycznie z systemem Windows? Zostanie też dodany skrót w menu Start. Możesz to później zmienić w ustawieniach.\n\nTak = uruchamiaj z Windows (zalecane)\nNie = tylko do następnego ponownego uruchomienia"
 }

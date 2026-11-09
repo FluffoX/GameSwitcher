@@ -175,5 +175,7 @@
   "log.manualStop": "手动游戏模式已结束",
   "log.paused": "已暂停",
   "log.resumed": "已继续",
-  "log.hotkeyFailed": "无法注册快捷键 {0}（已被占用？）"
+  "log.hotkeyFailed": "无法注册快捷键 {0}（已被占用？）",
+  "setup.title": "欢迎使用 GameSwitcher",
+  "setup.text": "GameSwitcher 在后台运行，一旦启动游戏就会切换你的设置。\n\n是否让 GameSwitcher 随 Windows 自动启动？同时会在开始菜单中添加一个条目。之后可以在设置中更改。\n\n是 = 随 Windows 启动（推荐）\n否 = 仅运行到下次重启"
 }
