@@ -8,10 +8,14 @@ Everything new is optional and can be turned off in the settings; whatever chang
 - **Graphics per game:** use the high-performance graphics card and turn Auto HDR on or off per game. GameSwitcher writes the per-program entries Windows uses (Settings → Display → Graphics) and restores the previous ones when the option is turned off.
 - **Monitor brightness** as a new action (external monitors via DDC/CI, built-in laptop screens via WMI), restored after the game.
 - **Couch mode:** when a controller of any brand connects, switch to the TV (second screen only, duplicate or extend), its audio output and run a command; switch back when the controller is off. Controllers that are always plugged in (wheels, flight sticks) are ignored.
-- **Recently played** games in the tray menu, launchable with one click.
+- **Start through GameSwitcher:** starting a game from the list, the tray menu or a new desktop shortcut applies its profile before the game starts (for games that check HDR or the resolution at startup).
+- **HDR on one chosen monitor** instead of all HDR-capable monitors.
+- **Mouse and keyboard actions:** pointer acceleration off, pointer speed, accessibility shortcuts off (Shift five times), Windows key blocked while the game is in the foreground – each restored after the game.
+- **Recently played** games in the tray menu, launchable with one click (with the game's profile).
 - **Session summary:** after a game, a notification shows how long you played.
 - **Statistics:** play time per day or month (last 7 days, 30 days, 12 months), per game. Play time per day is recorded from this version on.
-- The settings window is now organized in two columns (general and extras).
+- While couch mode is on, game profiles leave monitors, resolution, brightness and audio output alone (optional).
+- The settings window is now organized in two columns (general and extras); the actions panel has collapsible sections that show how many actions are on.
 
 ## 2.4.0
 

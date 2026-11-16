@@ -39,7 +39,7 @@ namespace GameSwitcher.Gui
         readonly CheckBox chkBattery = NewCheck(new Padding(3, 6, 3, 3)), chkBatteryWarn = NewCheck(new Padding(23, 6, 3, 3)), chkBatteryStart = NewCheck(new Padding(23, 4, 3, 3));
         readonly NumericUpDown numThreshold = new NumericUpDown { Minimum = 5, Maximum = 90, Margin = new Padding(3, 4, 3, 3) };
         readonly Label lblPercent = NewLabel(new Padding(0, 8, 3, 3)), lblBatteryHint = NewHint(new Padding(23, 2, 3, 3));
-        readonly CheckBox chkCouch = NewCheck(new Padding(3, 6, 3, 3)), chkCouchRevert = NewCheck(new Padding(23, 6, 3, 3));
+        readonly CheckBox chkCouch = NewCheck(new Padding(3, 6, 3, 3)), chkCouchRevert = NewCheck(new Padding(23, 6, 3, 3)), chkCouchSkip = NewCheck(new Padding(23, 2, 3, 3));
         readonly Label lblCouchHint = NewHint(new Padding(23, 0, 3, 3));
         readonly Label lblCouchDisplay = NewLabel(new Padding(23, 9, 8, 3)), lblCouchAudio = NewLabel(new Padding(23, 9, 8, 3)), lblCouchCommand = NewLabel(new Padding(23, 9, 8, 3));
         readonly ComboBox cmbCouchDisplay, cmbCouchAudio;
@@ -97,7 +97,7 @@ namespace GameSwitcher.Gui
             numThreshold.Width = LogicalToDeviceUnits(55);
             int wide = column - LogicalToDeviceUnits(10), indented = column - LogicalToDeviceUnits(30);
             foreach (var c in new[] { chkAutoDetect, chkTrayHdr, chkNotify, chkSummary, chkRecent, chkBattery, chkCouch }) c.Tag = wide;
-            foreach (var c in new[] { chkBatteryStart, chkCouchRevert }) c.Tag = indented;
+            foreach (var c in new[] { chkBatteryStart, chkCouchRevert, chkCouchSkip }) c.Tag = indented;
             chkBatteryWarn.Tag = indented - LogicalToDeviceUnits(80);
             foreach (var l in new[] { lblHotkeyHint, lblBatteryHint, lblCouchHint }) l.MaximumSize = new Size(indented, 0);
 
@@ -107,7 +107,7 @@ namespace GameSwitcher.Gui
             var right = Column(secComfort, chkSummary, chkRecent,
                 secBattery, chkBattery, Row(chkBatteryWarn, numThreshold, lblPercent), chkBatteryStart, lblBatteryHint,
                 secCouch, chkCouch, lblCouchHint, Row(lblCouchDisplay, cmbCouchDisplay), Row(lblCouchAudio, cmbCouchAudio),
-                Row(lblCouchCommand, txtCouchCommand), chkCouchRevert);
+                Row(lblCouchCommand, txtCouchCommand), chkCouchRevert, chkCouchSkip);
             var columns = Row(left, right);
             var panel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Padding = new Padding(14, 10, 14, 10) };
             panel.Controls.AddRange(new Control[] { columns, btnClose });
@@ -137,6 +137,7 @@ namespace GameSwitcher.Gui
             numThreshold.Value = Math.Max(5, Math.Min(90, settings.BatteryThreshold));
             chkCouch.Checked = settings.Couch.Enabled;
             chkCouchRevert.Checked = settings.Couch.Revert;
+            chkCouchSkip.Checked = settings.Couch.SkipProfile;
             txtCouchCommand.Text = settings.Couch.Command;
             FillCouchAudio();
             loading = false;
@@ -205,6 +206,7 @@ namespace GameSwitcher.Gui
             lblCouchAudio.Text = T("couch.audio");
             lblCouchCommand.Text = T("couch.command");
             chkCouchRevert.Text = T("couch.revert");
+            chkCouchSkip.Text = T("couch.skipProfile");
             loading = true;
             cmbTheme.Items.Clear();
             foreach (string t in new[] { "system", "light", "dark" })
@@ -231,7 +233,7 @@ namespace GameSwitcher.Gui
         {
             // selection fields stay usable (disabled ones render poorly in the dark design)
             chkBatteryWarn.Enabled = chkBatteryStart.Enabled = chkBattery.Checked;
-            chkCouchRevert.Enabled = chkCouch.Checked;
+            chkCouchRevert.Enabled = chkCouchSkip.Enabled = chkCouch.Checked;
         }
 
         // "Ctrl+Alt+G" from a key press; a hotkey needs at least one modifier
@@ -318,6 +320,7 @@ namespace GameSwitcher.Gui
             numThreshold.ValueChanged += (s, e) => Changed(() => settings.BatteryThreshold = (int)numThreshold.Value);
             chkCouch.CheckedChanged += (s, e) => Changed(() => settings.Couch.Enabled = chkCouch.Checked);
             chkCouchRevert.CheckedChanged += (s, e) => Changed(() => settings.Couch.Revert = chkCouchRevert.Checked);
+            chkCouchSkip.CheckedChanged += (s, e) => Changed(() => settings.Couch.SkipProfile = chkCouchSkip.Checked);
             cmbCouchDisplay.SelectedIndexChanged += (s, e) => Changed(() => settings.Couch.Display = ((Item)cmbCouchDisplay.SelectedItem).Code);
             cmbCouchAudio.SelectedIndexChanged += (s, e) => Changed(() =>
             {

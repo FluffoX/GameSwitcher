@@ -13,7 +13,7 @@ namespace GameSwitcher
     // Couch mode: switches display and audio while a controller is connected
     class CouchSettings
     {
-        public bool Enabled, Revert = true;
+        public bool Enabled, Revert = true, SkipProfile = true;   // SkipProfile: game profiles leave display and audio alone
         public string Display = "external", AudioId = "", AudioName = "", Command = "";
     }
 
@@ -51,7 +51,7 @@ namespace GameSwitcher
             if (raw.Dict("Couch") is Dictionary<string, object> couch)
                 c.Couch = new CouchSettings
                 {
-                    Enabled = couch.Bool("Enabled"), Revert = couch.Bool("Revert", true),
+                    Enabled = couch.Bool("Enabled"), Revert = couch.Bool("Revert", true), SkipProfile = couch.Bool("SkipProfile", true),
                     Display = couch.Str("Display").Length > 0 ? couch.Str("Display") : "external",
                     AudioId = couch.Str("AudioId"), AudioName = couch.Str("AudioName"), Command = couch.Str("Command")
                 };
@@ -111,7 +111,7 @@ namespace GameSwitcher
             }
             return new Dictionary<string, Dictionary<string, object>>
             {
-                ["Hdr"] = D("Enabled", true, "Revert", true),
+                ["Hdr"] = D("Enabled", true, "Display", "", "Revert", true),   // Display: monitor ID, empty = all HDR-capable
                 ["Sdr"] = D("Enabled", false, "Level", 30, "Revert", true),
                 ["Display"] = D("Enabled", false, "Width", 0, "Height", 0, "Hz", 0, "Revert", true),
                 ["Brightness"] = D("Enabled", false, "Level", 80, "Revert", true),
@@ -122,6 +122,10 @@ namespace GameSwitcher
                 ["Volume"] = D("Enabled", false, "Level", 50, "Revert", true),
                 ["Power"] = D("Enabled", false, "PlanId", "", "PlanName", "", "Revert", true),
                 ["KeepAwake"] = D("Enabled", false),
+                ["MouseAccel"] = D("Enabled", false, "Revert", true),
+                ["MouseSpeed"] = D("Enabled", false, "Level", 10, "Revert", true),
+                ["AccessKeys"] = D("Enabled", false, "Revert", true),
+                ["WinKey"] = D("Enabled", false),
                 ["CloseApps"] = D("Enabled", false, "Apps", new object[0], "Revert", true),
                 ["StartApps"] = D("Enabled", false, "Apps", new object[0], "Revert", true),
                 ["Script"] = D("Enabled", false, "Start", "", "End", ""),

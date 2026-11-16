@@ -12,14 +12,14 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 
 **On game start (each action can be reverted afterwards)**
 
-| Display | Audio | System | Programs |
-|---|---|---|---|
-| HDR on | Audio output (e.g. headset) | Power plan | Close programs (e.g. Wallpaper Engine) |
-| SDR brightness in HDR | Microphone | Prevent display standby | Start programs (e.g. Discord) |
-| Monitor brightness ² | Volume | | Custom commands before and after the game |
-| Resolution / refresh rate | | | |
-| Turn off other monitors | | | |
-| Night light off ¹ | | | |
+| Display | Audio | System | Mouse & keyboard | Programs |
+|---|---|---|---|---|
+| HDR on (all or one chosen monitor) | Audio output (e.g. headset) | Power plan | Pointer acceleration off | Close programs (e.g. Wallpaper Engine) |
+| SDR brightness in HDR | Microphone | Prevent display standby | Pointer speed | Start programs (e.g. Discord) |
+| Monitor brightness ² | Volume | | Accessibility shortcuts off (Shift ×5) | Custom commands before and after the game |
+| Resolution / refresh rate | | | Block the Windows key in the game | |
+| Turn off other monitors | | | | |
+| Night light off ¹ | | | | |
 
 **Graphics per game** (stored by Windows, as in Settings → Display → Graphics): use the high-performance graphics card (for PCs with two graphics chips) and turn Auto HDR on or off for a game.
 
@@ -28,6 +28,7 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 **Game detection**
 - Installed games from **Steam, Epic, GOG, Ubisoft, Xbox/Game Pass and EA** are found automatically, plus games Windows knows from Game Bar. Custom games or whole game folders can be added.
 - Optionally reacts to every game Windows recognizes, without checking it first.
+- **Start through GameSwitcher:** games started from GameSwitcher's list, from **Recently played** in the tray menu or from a desktop shortcut it creates (right-click a game) get their profile applied *before* they start – important for games that check HDR or the resolution only at startup. The session waits up to two minutes for slow launchers.
 - **Hotkey** (default Ctrl+Alt+G) for a manual game mode, e.g. for emulators or browser games.
 - Reacts within about a second.
 
@@ -37,7 +38,7 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 - **Play time** and last played per game; launch games directly from the list or from **Recently played** in the tray menu. After a game, a notification shows how long you played.
 - **Statistics:** play time per day or month for the last 7 days, 30 days or 12 months, per game.
 - **Battery levels** of controllers of any brand (Xbox-compatible via XInput, PlayStation, Nintendo Switch), Logitech wireless mice, keyboards and headsets, and any device that reports its battery to Windows the standard way (HID battery value via USB or wireless receiver, or Bluetooth) – in the window and the tray menu, with a warning when a battery runs low and when you start a game with a weak battery.
-- **Couch mode:** when a controller of any brand connects, switch to the TV (second screen only, duplicate or extend), its audio output and run a command; switch back when the controller is turned off.
+- **Couch mode:** when a controller of any brand connects, switch to the TV (second screen only, duplicate or extend), its audio output and run a command; switch back when the controller is turned off. While couch mode is on, game profiles leave monitors, resolution, brightness and audio output alone (can be turned off), so the TV setup stays.
 - **Everything extra is optional:** each of these functions can be turned off in the settings; anything that changes your system (graphics, brightness, couch mode) is off until you turn it on.
 - **Crash-safe:** every change is recorded right away and reverted on the next start after a crash or power loss.
 - **Your manual changes win:** settings you change yourself during a game are not reset.
@@ -94,7 +95,7 @@ Settings, play time and logs are stored in `%AppData%\GameSwitcher` (`settings.j
 | `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portable ZIP and checksums |
 | `.github/workflows/` | Checks on every push; releases are built and published by GitHub Actions when a version tag is pushed |
 
-`GameSwitcher.exe` also understands `--watcher` (background service), `--install` / `--uninstall` (autostart and Start menu entry), `--stop` (stop the service cleanly) and `--demo` (sample data for screenshots).
+`GameSwitcher.exe` also understands `--watcher` (background service), `--install` / `--uninstall` (autostart and Start menu entry), `--stop` (stop the service cleanly), `--launch "<game key>"` (apply the profile, then start the game; used by desktop shortcuts) and `--demo` (sample data for screenshots).
 
 ### Building from source
 
@@ -114,6 +115,7 @@ Copy `app/lang/en.json`, name it after the two-letter language code (e.g. `nl.js
 - Some functions use undocumented but long-stable Windows interfaces: switching the audio device (`IPolicyConfig`), SDR brightness and night light. If Windows changes them, the affected action stops working; everything else keeps running.
 - "Turn off other monitors" keeps the monitor showing the main desktop and afterwards restores the last extended layout Windows remembers.
 - Restarted programs start without their original command-line arguments.
+- Blocking the Windows key uses a keyboard hook in the background service and only applies while the game's window is in the foreground; Alt+Tab to the desktop and the key works again. Mouse and accessibility settings are the same as in Windows Settings and are restored after the game unless you changed them yourself.
 - Graphics card and Auto HDR use the per-program entries of Windows (`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`). Windows applies them when the game starts, so a change takes effect from the next start. GameSwitcher writes them for the main program of each selected game and for the programs it sees running; turning the option off restores what was there before. Auto HDR "on" only has an effect while Auto HDR is turned on in Windows.
 - Battery levels are read every minute; Logitech devices only every five minutes, because asking a sleeping device wakes it up. PlayStation and Nintendo controllers connected via Bluetooth report their battery only once a game or Steam has switched them to their full mode. XInput only tells empty / low / medium / full, and not the model, so these controllers are shown as Controller 1–4. Devices with their own protocols (e.g. Razer, Corsair, SteelSeries receivers) are only shown if they also report their battery to Windows.
 - Couch mode uses `DisplaySwitch.exe` (like Win+P) and switches back about 15 seconds after the last controller is gone. Any controller counts – XInput (Xbox and compatible) and every HID gamepad or joystick. Controllers that are already connected when the service starts, such as a steering wheel or flight stick that is always plugged in, are ignored until they have been disconnected once, so they never block or trigger couch mode.

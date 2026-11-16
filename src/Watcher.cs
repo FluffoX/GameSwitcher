@@ -261,7 +261,7 @@ namespace GameSwitcher
             string name = game == ManualGame ? T("tray.manual") : game.Name;
             Log.Write(game == ManualGame ? T("log.manualStart") : T("log.gameStarted", name));
             if (game != ManualGame) RecordGraphicsPrograms(game);
-            GameActions.Start(config, game.Key, name);
+            GameActions.Start(config, game.Key, name, couch: couch != null && config.Couch.SkipProfile);
             Notify(config.Notifications ? T("notify.start", name) : null, config.BatteryGameStart ? LowBatteryText("notify.batteryGameStart") : null);
         }
 
@@ -307,8 +307,12 @@ namespace GameSwitcher
                 var paused = Pause.Get();
                 if (paused != null) running.Clear();
 
+                // a game started through GameSwitcher keeps its session while it is still loading
+                if (active != null && running.Any(g => g.Key == active.Key)) launchWait = DateTime.MinValue;
+                bool waitingForLaunch = active != null && paused == null && DateTime.Now < launchWait;
+
                 if (running.Count > 0 && active == null) StartSession(running[0]);
-                else if (running.Count > 0) idleSeconds = 0;
+                else if (running.Count > 0 || waitingForLaunch) idleSeconds = 0;
                 else if (active != null)
                 {
                     idleSeconds++;
@@ -316,6 +320,7 @@ namespace GameSwitcher
                     if (active.Key == "manual" || paused != null || idleSeconds >= IdleSecondsBeforeRevert) StopSession();
                 }
                 UpdateCouch(paused != null);
+                UpdateWinKey();
                 UpdateTrayTexts(paused);
             }
             catch (Exception ex)
@@ -346,6 +351,41 @@ namespace GameSwitcher
 
         #endregion
 
+
+        #region Windows key
+
+        WinKeyBlocker winKey;
+        HashSet<int> gamePids = new HashSet<int>();
+
+        // Blocks the Windows key while the active game (not the manual game mode) is in the foreground
+        void UpdateWinKey()
+        {
+            bool wanted = active != null && active != ManualGame && config.ActionsFor(active.Key).On("WinKey");
+            if (wanted)
+            {
+                var names = new HashSet<string>(active.Exes.Select(e => Path.GetFileNameWithoutExtension(e).ToLowerInvariant()));
+                var pids = new HashSet<int>();
+                foreach (Process p in Process.GetProcesses())
+                {
+                    if (names.Contains(p.ProcessName.ToLowerInvariant())) pids.Add(p.Id);
+                    p.Dispose();
+                }
+                gamePids = pids;
+                if (winKey == null)
+                {
+                    try { winKey = new WinKeyBlocker(pid => gamePids.Contains(pid)); Log.Write(T("log.winKeyBlocked")); }
+                    catch (Exception ex) { Log.Write(T("log.actionError", T("act.winKey"), ex.Message)); }
+                }
+            }
+            else if (winKey != null)
+            {
+                winKey.Dispose();
+                winKey = null;
+                gamePids = new HashSet<int>();
+            }
+        }
+
+        #endregion
         #region Batteries and couch mode
 
         // Devices are polled on a background thread: HID requests can take a moment
@@ -496,25 +536,37 @@ namespace GameSwitcher
                 .OrderByDescending(g => g.Last).Take(5).ToList();
             foreach (var g in recent)
             {
-                string launch = config.Library.FirstOrDefault(x => x.Key == g.Key)?.Launch;
-                if (string.IsNullOrEmpty(launch) && g.Key.StartsWith("auto:")) launch = g.Key.Substring(5);
-                if (string.IsNullOrEmpty(launch) && File.Exists(g.Key)) launch = g.Key;
-                var item = new ToolStripMenuItem(g.Name) { Enabled = !string.IsNullOrEmpty(launch) };
-                item.Click += (s, e) => LaunchGame(launch);
+                string key = g.Key;
+                var item = new ToolStripMenuItem(g.Name) { Enabled = Launcher.TargetFor(config, key) != null };
+                item.Click += (s, e) => LaunchWithProfile(key);
                 miRecent.DropDownItems.Add(item);
             }
             if (recent.Count == 0) miRecent.DropDownItems.Add(new ToolStripMenuItem(T("tray.recentNone")) { Enabled = false });
         }
 
-        static void LaunchGame(string target)
+        // Applies the game's profile first, then starts the game; the session waits up to two minutes
+        // for the game to appear (launchers, updates). A paused service or a running game just starts it.
+        DateTime launchWait = DateTime.MinValue;
+        const int LaunchWaitSeconds = 120;
+
+        void LaunchWithProfile(string key)
         {
+            string target = Launcher.TargetFor(config, key);
+            if (target == null) return;
+            GameRef game = config.Selected.FirstOrDefault(g => g.Key == key)
+                ?? autoMap.Values.FirstOrDefault(g => g.Key == key);   // only games the service also detects while running
             try
             {
-                var psi = new ProcessStartInfo(target) { UseShellExecute = true };
-                if (File.Exists(target)) psi.WorkingDirectory = Path.GetDirectoryName(target);
-                Process.Start(psi);
+                if (game != null && active == null && Pause.Get() == null)
+                {
+                    Log.Write(T("log.launch", game.Name));
+                    StartSession(game);
+                    launchWait = DateTime.Now.AddSeconds(LaunchWaitSeconds);
+                }
+                Launcher.Start(target);
             }
             catch (Exception ex) { Log.Write(T("log.error", ex.Message)); }
+            UpdateTrayTexts(Pause.Get());
         }
 
         #endregion
@@ -645,12 +697,15 @@ namespace GameSwitcher
 
         // The window ("Stop service") and the uninstaller signal this event: revert and exit cleanly
         readonly EventWaitHandle exitRequest = new EventWaitHandle(false, EventResetMode.AutoReset, Autostart.ServiceExitEvent);
+        // The window, the tray menu and desktop shortcuts signal this event to start a game through the service
+        readonly EventWaitHandle launchRequest = new EventWaitHandle(false, EventResetMode.AutoReset, Launcher.RequestEvent);
         readonly Control invoker = new Control();
 
         void ListenForExitRequest()
         {
             invoker.CreateControl();
             ThreadPool.RegisterWaitForSingleObject(exitRequest, (s, timedOut) => invoker.BeginInvoke((Action)ExitService), null, -1, true);
+            ThreadPool.RegisterWaitForSingleObject(launchRequest, (s, timedOut) => invoker.BeginInvoke((Action)(() => { string key = Launcher.TakeRequest(); if (key != null) LaunchWithProfile(key); })), null, -1, false);
         }
 
         void ExitService()
@@ -661,6 +716,7 @@ namespace GameSwitcher
             if (couch != null) { Couch.End(config.Couch, couch); couch = null; }
             tray.Visible = false;
             hotkey.Unregister();
+            winKey?.Dispose(); winKey = null;
             ExitThread();
         }
 

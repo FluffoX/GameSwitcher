@@ -12,14 +12,14 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 
 **Beim Spielstart (jede Aktion lässt sich danach zurücksetzen)**
 
-| Anzeige | Audio | System | Programme |
-|---|---|---|---|
-| HDR an | Audioausgabe (z. B. Headset) | Energiesparplan | Programme beenden (z. B. Wallpaper Engine) |
-| SDR-Helligkeit im HDR | Mikrofon | Bildschirm-Standby verhindern | Programme starten (z. B. Discord) |
-| Monitor-Helligkeit ² | Lautstärke | | Eigene Befehle vor und nach dem Spiel |
-| Auflösung / Bildwiederholrate | | | |
-| Weitere Monitore ausschalten | | | |
-| Nachtlicht aus ¹ | | | |
+| Anzeige | Audio | System | Maus und Tastatur | Programme |
+|---|---|---|---|---|
+| HDR an (alle oder ein gewählter Monitor) | Audioausgabe (z. B. Headset) | Energiesparplan | Zeigerbeschleunigung aus | Programme beenden (z. B. Wallpaper Engine) |
+| SDR-Helligkeit im HDR | Mikrofon | Bildschirm-Standby verhindern | Zeigergeschwindigkeit | Programme starten (z. B. Discord) |
+| Monitor-Helligkeit ² | Lautstärke | | Tastenkürzel der Bedienungshilfen aus (5× Umschalt) | Eigene Befehle vor und nach dem Spiel |
+| Auflösung / Bildwiederholrate | | | Windows-Taste im Spiel sperren | |
+| Weitere Monitore ausschalten | | | | |
+| Nachtlicht aus ¹ | | | | |
 
 **Grafik pro Spiel** (von Windows gespeichert, wie unter Einstellungen → Anzeige → Grafik): leistungsstarke Grafikkarte verwenden (bei PCs mit zwei Grafikchips) und Auto HDR für ein Spiel ein- oder ausschalten.
 
@@ -28,6 +28,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 **Spielerkennung**
 - Installierte Spiele aus **Steam, Epic, GOG, Ubisoft, Xbox/Game Pass und EA** werden automatisch gefunden, dazu Spiele, die Windows über die Game Bar kennt. Eigene Spiele oder ganze Spieleordner lassen sich ergänzen.
 - Optional reagiert GameSwitcher auf jedes Spiel, das Windows erkennt, ohne es vorher anzuhaken.
+- **Start über GameSwitcher:** Spiele, die aus der Liste, über **Zuletzt gespielt** im Tray-Menü oder über eine Desktop-Verknüpfung von GameSwitcher (Rechtsklick auf ein Spiel) gestartet werden, bekommen ihr Profil *vor* dem Start – wichtig für Spiele, die HDR oder die Auflösung nur beim Start prüfen. Langsame Launcher bekommen bis zu zwei Minuten Zeit.
 - **Tastenkürzel** (Standard Strg+Alt+G) für einen manuellen Spielmodus, z. B. für Emulatoren oder Browserspiele.
 - Reagiert innerhalb von etwa einer Sekunde.
 
@@ -37,7 +38,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - **Spielzeit** und „Zuletzt gespielt“ pro Spiel; Spiele direkt aus der Liste oder über **Zuletzt gespielt** im Tray-Menü starten. Nach dem Spiel zeigt eine Benachrichtigung, wie lange du gespielt hast.
 - **Statistik:** Spielzeit pro Tag oder Monat für die letzten 7 Tage, 30 Tage oder 12 Monate, aufgeteilt nach Spielen.
 - **Akkustände** von Controllern aller Marken (Xbox-kompatibel über XInput, PlayStation, Nintendo Switch), Logitech-Funkmäusen, -Tastaturen und -Headsets sowie allen Geräten, die ihren Akkustand auf dem Standardweg an Windows melden (HID-Akkuwert über USB oder Funkempfänger, oder Bluetooth) – im Fenster und im Tray-Menü, mit Warnung bei schwachem Akku und beim Spielstart mit schwachem Akku.
-- **Couch-Modus:** Sobald ein Controller beliebiger Marke verbunden wird, auf den Fernseher umschalten (nur zweiter Bildschirm, duplizieren oder erweitern), seine Audioausgabe wählen und einen Befehl ausführen; zurückschalten, wenn der Controller ausgeschaltet wird.
+- **Couch-Modus:** Sobald ein Controller beliebiger Marke verbunden wird, auf den Fernseher umschalten (nur zweiter Bildschirm, duplizieren oder erweitern), seine Audioausgabe wählen und einen Befehl ausführen; zurückschalten, wenn der Controller ausgeschaltet wird. Solange der Couch-Modus aktiv ist, ändern Spielprofile weder Monitore, Auflösung und Helligkeit noch die Audioausgabe (abschaltbar) – die Fernseher-Einstellung bleibt also.
 - **Alle Extras sind optional:** Jede dieser Funktionen lässt sich in den Einstellungen abschalten. Alles, was dein System verändert (Grafik, Helligkeit, Couch-Modus), ist aus, bis du es einschaltest.
 - **Absturzsicher:** Jede Änderung wird sofort vermerkt und nach einem Absturz oder Stromausfall beim nächsten Start zurückgesetzt.
 - **Deine Änderungen haben Vorrang:** Was du während des Spiels selbst umstellst, wird nicht zurückgesetzt.
@@ -94,7 +95,7 @@ Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`set
 | `installer/GameSwitcher.iss`, `Release.ps1` | Setup (Inno Setup), portables ZIP und Prüfsummen |
 | `.github/workflows/` | Prüfungen bei jedem Push; Releases baut und veröffentlicht GitHub Actions, sobald ein Versions-Tag hochgeladen wird |
 
-`GameSwitcher.exe` versteht außerdem `--watcher` (Hintergrunddienst), `--install` / `--uninstall` (Autostart und Startmenü-Eintrag), `--stop` (Dienst sauber beenden) und `--demo` (Beispieldaten für Screenshots).
+`GameSwitcher.exe` versteht außerdem `--watcher` (Hintergrunddienst), `--install` / `--uninstall` (Autostart und Startmenü-Eintrag), `--stop` (Dienst sauber beenden), `--launch "<Spielschlüssel>"` (Profil anwenden, dann Spiel starten; für Desktop-Verknüpfungen) und `--demo` (Beispieldaten für Screenshots).
 
 ### Aus dem Quellcode bauen
 
@@ -114,6 +115,7 @@ Zum Bauen wird das [.NET SDK](https://dotnet.microsoft.com/download) benötigt (
 - Einige Funktionen nutzen undokumentierte, aber seit Langem stabile Windows-Schnittstellen: Audiogerät umschalten (`IPolicyConfig`), SDR-Helligkeit und Nachtlicht. Ändert Windows sie, funktioniert die betroffene Aktion nicht mehr; alles andere läuft weiter.
 - „Weitere Monitore ausschalten“ behält den Monitor mit dem Hauptdesktop und stellt danach die zuletzt von Windows gemerkte erweiterte Anordnung wieder her.
 - Wieder gestartete Programme starten ohne ihre ursprünglichen Startparameter.
+- Die Sperre der Windows-Taste nutzt einen Tastatur-Hook im Hintergrunddienst und gilt nur, solange das Spielfenster im Vordergrund ist; per Alt+Tab auf dem Desktop funktioniert die Taste wieder. Maus- und Bedienungshilfen-Einstellungen sind dieselben wie in den Windows-Einstellungen und werden nach dem Spiel zurückgesetzt, sofern du sie nicht selbst geändert hast.
 - Grafikkarte und Auto HDR nutzen die Programm-Einträge von Windows (`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`). Windows wendet sie beim Start des Spiels an, eine Änderung wirkt also ab dem nächsten Start. GameSwitcher schreibt sie für das Hauptprogramm jedes ausgewählten Spiels und für die Programme, die es laufen sieht; beim Abwählen wird der vorherige Eintrag wiederhergestellt. Auto HDR „An“ wirkt nur, wenn Auto HDR in Windows eingeschaltet ist.
 - Akkustände werden jede Minute gelesen, Logitech-Geräte nur alle fünf Minuten, weil eine Abfrage ein schlafendes Gerät aufweckt. PlayStation- und Nintendo-Controller über Bluetooth melden ihren Akku erst, nachdem ein Spiel oder Steam sie in ihren vollen Modus geschaltet hat. XInput meldet nur leer / niedrig / mittel / voll und nicht das Modell, daher heißen diese Controller Controller 1–4. Geräte mit eigenem Protokoll (z. B. Empfänger von Razer, Corsair, SteelSeries) erscheinen nur, wenn sie ihren Akkustand auch an Windows melden.
 - Der Couch-Modus nutzt `DisplaySwitch.exe` (wie Win+P) und schaltet etwa 15 Sekunden nach dem letzten Controller zurück. Jeder Controller zählt – XInput (Xbox und kompatible) und jedes HID-Gamepad oder jeder Joystick. Controller, die beim Start des Dienstes schon verbunden sind, etwa ein dauerhaft angeschlossenes Lenkrad oder ein Flugsteuer, werden ignoriert, bis sie einmal getrennt wurden – sie blockieren den Couch-Modus also nicht und lösen ihn auch nicht aus.

@@ -58,23 +58,27 @@ namespace GameSwitcher.Gui
         readonly ImageList images = new ImageList();
         readonly ListViewSorter sorter = new ListViewSorter();
         readonly Label lblHdr, lblRunning, lblAudio, lblBattery, lblPause, lblSearch, lblActions, lblProfile, lblScriptStart, lblScriptEnd;
-        readonly Label secDisplay, secAudio, secSystem, secPrograms, secGraphics, lblAutoHdr, lblGraphicsHint;
+        readonly Label secDisplay, secAudio, secSystem, secInput, secPrograms, secGraphics, lblAutoHdr, lblGraphicsHint, lblHdrDisplay;
         readonly Button btnToggleHdr, btnPause, btnRescan, btnAddExe, btnAddFolder, btnRemove, btnLog, btnStats, btnSettings;
         readonly Button btnCloseAdd, btnCloseRemove, btnStartAdd, btnStartRemove, btnScriptStart, btnScriptEnd;
         readonly LinkLabel lnkUpdate = new LinkLabel();
         readonly TextBox txtSearch = new TextBox(), txtScriptStart = new TextBox(), txtScriptEnd = new TextBox();
-        readonly ComboBox cmbSource, cmbProfile, cmbDisplay, cmbAudio, cmbMic, cmbPower, cmbAutoHdr;
+        readonly ComboBox cmbSource, cmbProfile, cmbDisplay, cmbAudio, cmbMic, cmbPower, cmbAutoHdr, cmbHdrDisplay;
         readonly CheckBox chkOnlySelected, chkOwnProfile;
         readonly CheckBox chkHdr, chkHdrRevert, chkSdr, chkSdrRevert, chkBright, chkBrightRevert, chkDisplay, chkDisplayRevert, chkMonitors, chkMonitorsRevert,
                           chkNight, chkNightRevert, chkAudio, chkAudioRevert, chkMic, chkMicRevert, chkVolume, chkVolumeRevert,
-                          chkPower, chkPowerRevert, chkKeepAwake, chkClose, chkCloseRevert, chkStart, chkStartRevert, chkScript, chkGpu;
-        readonly NumericUpDown numSdr, numBright, numVolume;
+                          chkPower, chkPowerRevert, chkKeepAwake, chkClose, chkCloseRevert, chkStart, chkStartRevert, chkScript, chkGpu,
+                          chkMouseAccel, chkMouseAccelRevert, chkSpeed, chkSpeedRevert, chkAccess, chkAccessRevert, chkWinKey;
+        readonly NumericUpDown numSdr, numBright, numVolume, numSpeed;
+        readonly FlowLayoutPanel hdrDisplayRow;
+        // Collapsible sections of the actions panel: header, ID (saved), text key, controls, actions counted as "active"
+        readonly List<(Label Header, string Id, string TextKey, Control[] Members, string[] Actions)> sections;
         readonly ListBox lstClose, lstStart;
         readonly FlowLayoutPanel statusPanel, searchPanel, bottom, actionsPanel;
         readonly StatusStrip statusBar = new StatusStrip();
         readonly ToolStripStatusLabel status = new ToolStripStatusLabel();
         readonly ContextMenuStrip menu = new ContextMenuStrip(), addMenu = new ContextMenuStrip(), pauseMenu = new ContextMenuStrip();
-        readonly ToolStripMenuItem miLaunch, miProfile, miOpen, miRemove, miAddRunning, miAddFile, miPause1, miPause2, miPauseReboot;
+        readonly ToolStripMenuItem miLaunch, miProfile, miShortcut, miOpen, miRemove, miAddRunning, miAddFile, miPause1, miPause2, miPauseReboot;
         readonly Timer timer = new Timer { Interval = 2000 };
         readonly List<(Control Control, string Action, string Field)> bindings;
         readonly List<(CheckBox Master, Control[] Dependents)> dependents;
@@ -148,7 +152,12 @@ namespace GameSwitcher.Gui
             chkOwnProfile = NewCheck(0, 4);
 
             secDisplay = NewSection();
-            chkHdr = NewCheck(0, 2); chkHdrRevert = NewCheck(20);
+            chkHdr = NewCheck(0, 2);
+            hdrDisplayRow = NewFlow(); hdrDisplayRow.Margin = new Padding(20, 0, 0, 0);
+            lblHdrDisplay = NewLabel(new Padding(3, 7, 3, 3));
+            cmbHdrDisplay = NewCombo(innerWidth - Px(100)); cmbHdrDisplay.Margin = new Padding(3, 4, 3, 2);
+            hdrDisplayRow.Controls.AddRange(new Control[] { lblHdrDisplay, cmbHdrDisplay });
+            chkHdrRevert = NewCheck(20);
             var sdrRow = NewCheckNumber(8, out chkSdr, out numSdr); chkSdrRevert = NewCheck(20);
             var brightRow = NewCheckNumber(8, out chkBright, out numBright); chkBrightRevert = NewCheck(20);
             chkDisplay = NewCheck(0, 10); cmbDisplay = NewActionCombo(); chkDisplayRevert = NewCheck(20);
@@ -163,6 +172,12 @@ namespace GameSwitcher.Gui
             secSystem = NewSection();
             chkPower = NewCheck(0, 2); cmbPower = NewActionCombo(); chkPowerRevert = NewCheck(20);
             chkKeepAwake = NewCheck(0, 10);
+
+            secInput = NewSection();
+            chkMouseAccel = NewCheck(0, 2); chkMouseAccelRevert = NewCheck(20);
+            var speedRow = NewCheckNumber(8, out chkSpeed, out numSpeed, 1, 20, "(1–20)"); chkSpeedRevert = NewCheck(20);
+            chkAccess = NewCheck(0, 10); chkAccessRevert = NewCheck(20);
+            chkWinKey = NewCheck(0, 10);
 
             secGraphics = NewSection();
             chkGpu = NewCheck(0, 2);
@@ -181,15 +196,36 @@ namespace GameSwitcher.Gui
             lblScriptStart = NewLabel(new Padding(23, 4, 3, 0)); var scriptStartRow = NewScriptRow(txtScriptStart, out btnScriptStart);
             lblScriptEnd = NewLabel(new Padding(23, 4, 3, 0)); var scriptEndRow = NewScriptRow(txtScriptEnd, out btnScriptEnd);
 
-            actionsPanel.Controls.AddRange(new Control[] {
-                lblActions, profileRow, chkOwnProfile,
-                secDisplay, chkHdr, chkHdrRevert, sdrRow, chkSdrRevert, brightRow, chkBrightRevert, chkDisplay, cmbDisplay, chkDisplayRevert,
-                chkMonitors, chkMonitorsRevert, chkNight, chkNightRevert,
-                secAudio, chkAudio, cmbAudio, chkAudioRevert, chkMic, cmbMic, chkMicRevert, volRow, chkVolumeRevert,
-                secSystem, chkPower, cmbPower, chkPowerRevert, chkKeepAwake,
-                secGraphics, chkGpu, autoHdrRow, lblGraphicsHint,
-                secPrograms, chkClose, lstClose, closeRow, chkCloseRevert, chkStart, lstStart, startRow, chkStartRevert,
-                chkScript, lblScriptStart, scriptStartRow, lblScriptEnd, scriptEndRow });
+            sections = new List<(Label, string, string, Control[], string[])>
+            {
+                (secDisplay, "display", "sec.display",
+                    new Control[] { chkHdr, hdrDisplayRow, chkHdrRevert, sdrRow, chkSdrRevert, brightRow, chkBrightRevert, chkDisplay, cmbDisplay, chkDisplayRevert,
+                                    chkMonitors, chkMonitorsRevert, chkNight, chkNightRevert },
+                    new[] { "Hdr", "Sdr", "Brightness", "Display", "Monitors", "NightLight" }),
+                (secAudio, "audio", "sec.audio",
+                    new Control[] { chkAudio, cmbAudio, chkAudioRevert, chkMic, cmbMic, chkMicRevert, volRow, chkVolumeRevert },
+                    new[] { "Audio", "Mic", "Volume" }),
+                (secSystem, "system", "sec.system",
+                    new Control[] { chkPower, cmbPower, chkPowerRevert, chkKeepAwake },
+                    new[] { "Power", "KeepAwake" }),
+                (secInput, "input", "sec.input",
+                    new Control[] { chkMouseAccel, chkMouseAccelRevert, speedRow, chkSpeedRevert, chkAccess, chkAccessRevert, chkWinKey },
+                    new[] { "MouseAccel", "MouseSpeed", "AccessKeys", "WinKey" }),
+                (secGraphics, "graphics", "sec.graphics",
+                    new Control[] { chkGpu, autoHdrRow, lblGraphicsHint },
+                    new[] { "Gpu", "AutoHdr" }),
+                (secPrograms, "programs", "sec.programs",
+                    new Control[] { chkClose, lstClose, closeRow, chkCloseRevert, chkStart, lstStart, startRow, chkStartRevert,
+                                    chkScript, lblScriptStart, scriptStartRow, lblScriptEnd, scriptEndRow },
+                    new[] { "CloseApps", "StartApps", "Script" }),
+            };
+            actionsPanel.Controls.AddRange(new Control[] { lblActions, profileRow, chkOwnProfile });
+            foreach (var s in sections)
+            {
+                s.Header.Cursor = Cursors.Hand;
+                actionsPanel.Controls.Add(s.Header);
+                actionsPanel.Controls.AddRange(s.Members);
+            }
 
             // Simple fields: control -> action/field, and which controls depend on which checkbox
             bindings = new List<(Control, string, string)>
@@ -206,13 +242,19 @@ namespace GameSwitcher.Gui
                 (chkVolume, "Volume", "Enabled"), (numVolume, "Volume", "Level"), (chkVolumeRevert, "Volume", "Revert"),
                 (chkPower, "Power", "Enabled"), (chkPowerRevert, "Power", "Revert"),
                 (chkKeepAwake, "KeepAwake", "Enabled"),
+                (chkMouseAccel, "MouseAccel", "Enabled"), (chkMouseAccelRevert, "MouseAccel", "Revert"),
+                (chkSpeed, "MouseSpeed", "Enabled"), (numSpeed, "MouseSpeed", "Level"), (chkSpeedRevert, "MouseSpeed", "Revert"),
+                (chkAccess, "AccessKeys", "Enabled"), (chkAccessRevert, "AccessKeys", "Revert"),
+                (chkWinKey, "WinKey", "Enabled"),
                 (chkClose, "CloseApps", "Enabled"), (chkCloseRevert, "CloseApps", "Revert"),
                 (chkStart, "StartApps", "Enabled"), (chkStartRevert, "StartApps", "Revert"),
                 (chkScript, "Script", "Enabled"), (txtScriptStart, "Script", "Start"), (txtScriptEnd, "Script", "End"),
             };
             dependents = new List<(CheckBox, Control[])>
             {
-                (chkHdr, new Control[] { chkHdrRevert }), (chkSdr, new Control[] { numSdr, chkSdrRevert }),
+                (chkHdr, new Control[] { cmbHdrDisplay, chkHdrRevert }), (chkSdr, new Control[] { numSdr, chkSdrRevert }),
+                (chkMouseAccel, new Control[] { chkMouseAccelRevert }), (chkSpeed, new Control[] { numSpeed, chkSpeedRevert }),
+                (chkAccess, new Control[] { chkAccessRevert }),
                 (chkBright, new Control[] { numBright, chkBrightRevert }),
                 (chkDisplay, new Control[] { cmbDisplay, chkDisplayRevert }), (chkMonitors, new Control[] { chkMonitorsRevert }),
                 (chkNight, new Control[] { chkNightRevert }), (chkAudio, new Control[] { cmbAudio, chkAudioRevert }),
@@ -226,6 +268,7 @@ namespace GameSwitcher.Gui
             // Menus
             miLaunch = AddMenuItem(menu, () => StartGame(SelectedGame)); miLaunch.Font = new Font(miLaunch.Font, FontStyle.Bold);
             miProfile = AddMenuItem(menu, EditSelectedProfile);
+            miShortcut = AddMenuItem(menu, CreateShortcut);
             miOpen = AddMenuItem(menu, OpenSelectedLocation);
             miRemove = AddMenuItem(menu, RemoveSelectedGame);
             list.ContextMenuStrip = menu;
@@ -284,12 +327,12 @@ namespace GameSwitcher.Gui
             new CheckBox { AutoSize = true, Margin = new Padding(3 + indent, top, 3, 1), Tag = innerWidth - indent };
 
         // A checkbox followed by a number field and a unit, e.g. "Set volume to [50] %"
-        FlowLayoutPanel NewCheckNumber(int top, out CheckBox check, out NumericUpDown number)
+        FlowLayoutPanel NewCheckNumber(int top, out CheckBox check, out NumericUpDown number, int min = 0, int max = 100, string unitText = "%")
         {
             var row = NewFlow();
             check = NewCheck(0, top); check.Tag = innerWidth - Px(100);
-            number = new NumericUpDown { Minimum = 0, Maximum = 100, Width = Px(60), Margin = new Padding(3, top - 2, 3, 1) };
-            var unit = NewLabel(new Padding(0, top + 2, 3, 1)); unit.Text = "%";
+            number = new NumericUpDown { Minimum = min, Maximum = max, Width = Px(60), Margin = new Padding(3, top - 2, 3, 1) };
+            var unit = NewLabel(new Padding(0, top + 2, 3, 1)); unit.Text = unitText;
             row.Controls.AddRange(new Control[] { check, number, unit });
             return row;
         }
@@ -328,7 +371,7 @@ namespace GameSwitcher.Gui
             Font = new Font(font, 9);
             lblHdr.Font = new Font(font, 11, FontStyle.Bold);
             lblActions.Font = new Font(font, 10, FontStyle.Bold);
-            foreach (var sec in new[] { secDisplay, secAudio, secSystem, secGraphics, secPrograms }) sec.Font = new Font(font, 9.5f, FontStyle.Bold);
+            foreach (var s in sections) s.Header.Font = new Font(font, 9.5f, FontStyle.Bold);
 
             string[] columns = { "col.game", "col.source", "col.profile", "col.playtime", "col.lastPlayed", "col.processes" };
             for (int i = 0; i < columns.Length; i++) list.Columns[i].Text = T(columns[i]);
@@ -344,8 +387,6 @@ namespace GameSwitcher.Gui
             lblActions.Text = T("actions.title");
             lblProfile.Text = T("profile.label");
             chkOwnProfile.Text = T("profile.own");
-            secDisplay.Text = T("sec.display"); secAudio.Text = T("sec.audio"); secSystem.Text = T("sec.system"); secPrograms.Text = T("sec.programs");
-            secGraphics.Text = T("sec.graphics");
             chkHdr.Text = T("act.hdr"); chkHdrRevert.Text = T("act.hdrRevert");
             chkSdr.Text = T("act.sdr"); chkSdrRevert.Text = T("act.sdrRevert");
             chkBright.Text = T("act.brightness") + (brightnessSupported ? "" : " – " + T("label.unsupported"));
@@ -372,6 +413,11 @@ namespace GameSwitcher.Gui
             chkVolume.Text = T("act.volume"); chkVolumeRevert.Text = T("act.volumeRevert");
             chkPower.Text = T("act.power"); chkPowerRevert.Text = T("act.powerRevert");
             chkKeepAwake.Text = T("act.keepAwake");
+            chkMouseAccel.Text = T("act.mouseAccel"); chkMouseAccelRevert.Text = T("act.settingRevert");
+            chkSpeed.Text = T("act.mouseSpeed"); chkSpeedRevert.Text = T("act.settingRevert");
+            chkAccess.Text = T("act.accessKeys"); chkAccessRevert.Text = T("act.settingRevert");
+            chkWinKey.Text = T("act.winKey");
+            lblHdrDisplay.Text = T("act.hdrDisplay");
             chkClose.Text = T("act.close"); chkCloseRevert.Text = T("act.closeRevert");
             chkStart.Text = T("act.start"); chkStartRevert.Text = T("act.startRevert");
             chkScript.Text = T("act.script");
@@ -379,10 +425,11 @@ namespace GameSwitcher.Gui
             btnCloseAdd.Text = btnStartAdd.Text = T("btn.add");
             btnCloseRemove.Text = btnStartRemove.Text = T("btn.remove");
             miLaunch.Text = T("menu.launch"); miProfile.Text = T("menu.editProfile");
-            miOpen.Text = T("menu.openLocation"); miRemove.Text = T("menu.removeFromList");
+            miOpen.Text = T("menu.openLocation"); miRemove.Text = T("menu.removeFromList"); miShortcut.Text = T("menu.shortcut");
             miAddRunning.Text = T("menu.addRunning"); miAddFile.Text = T("menu.addFile");
             miPause1.Text = T("pause.1h"); miPause2.Text = T("pause.2h"); miPauseReboot.Text = T("pause.reboot");
             if (updateTag != null) lnkUpdate.Text = T("update.available", updateTag);
+            UpdateSections();
         }
 
         public string ThemeSetting => settings.Theme;
@@ -690,11 +737,29 @@ namespace GameSwitcher.Gui
             if (string.IsNullOrEmpty(target)) return;
             try
             {
-                var psi = new ProcessStartInfo(target) { UseShellExecute = true };
-                if (File.Exists(target)) psi.WorkingDirectory = Path.GetDirectoryName(target);
-                Process.Start(psi);
+                // a selected game goes through the service, which applies the profile before the game starts
+                if (!demo && settings.Selected.ContainsKey(game.Key))
+                {
+                    Cursor = Cursors.WaitCursor;
+                    Launcher.Request(game.Key, target);
+                    Cursor = Cursors.Default;
+                }
+                else Launcher.Start(target);
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "GameSwitcher"); }
+            catch (Exception ex) { Cursor = Cursors.Default; MessageBox.Show(this, ex.Message, "GameSwitcher"); }
+        }
+
+        void CreateShortcut()
+        {
+            Game game = SelectedGame;
+            if (game == null || demo) return;
+            try
+            {
+                if (!settings.Selected.ContainsKey(game.Key)) list.SelectedItems[0].Checked = true;   // the shortcut needs the game's profile
+                Launcher.CreateShortcut(game.Name, game.Key, game.MainExe);
+                MessageBox.Show(this, T("dlg.shortcutCreated", game.Name), T("menu.shortcut"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, T("menu.shortcut")); }
         }
 
         void OpenSelectedLocation()
@@ -811,6 +876,52 @@ namespace GameSwitcher.Gui
             else if (demo && cmbPower.Items.Count > 0) cmbPower.SelectedIndex = Math.Min(1, cmbPower.Items.Count - 1);
         }
 
+        // HDR monitor choice: only shown with more than one HDR-capable monitor (or a stored choice)
+        void FillHdrDisplayCombo(Dictionary<string, object> action)
+        {
+            cmbHdrDisplay.Items.Clear();
+            var all = new Item { Code = "", Name = T("hdr.allDisplays") };
+            cmbHdrDisplay.Items.Add(all);
+            cmbHdrDisplay.SelectedItem = all;
+            string stored = action.Str("Display");
+            foreach (var d in demo ? new List<HdrDisplay>() : SafeGet(DisplayConfig.GetDisplays)?.Where(x => x.HdrSupported).ToList() ?? new List<HdrDisplay>())
+            {
+                var i = new Item { Code = d.MonitorId, Name = d.Name };
+                cmbHdrDisplay.Items.Add(i);
+                if (d.MonitorId == stored) cmbHdrDisplay.SelectedItem = i;
+            }
+            if (stored.Length > 0 && cmbHdrDisplay.SelectedItem == all)
+            {
+                var missing = new Item { Code = stored, Name = T("audio.disconnected", T("act.hdrDisplay").TrimEnd(':')), Disconnected = true };
+                cmbHdrDisplay.Items.Add(missing);
+                cmbHdrDisplay.SelectedItem = missing;
+            }
+            showHdrDisplay = cmbHdrDisplay.Items.Count > 2 || stored.Length > 0;
+        }
+        bool showHdrDisplay;
+
+        // Collapsible sections: a collapsed header shows how many of its actions are on
+        void UpdateSections()
+        {
+            var (a, _) = EditActions;
+            actionsPanel.SuspendLayout();
+            foreach (var s in sections)
+            {
+                bool collapsed = settings.Collapsed.Contains(s.Id);
+                int on = s.Actions.Count(x => x == "AutoHdr" ? a["AutoHdr"].Str("Mode") is string m && m != "default" && m.Length > 0 : a.On(x));
+                s.Header.Text = (collapsed ? "▸ " : "▾ ") + T(s.TextKey) + (collapsed && on > 0 ? "   ·   " + T("sec.active", on) : "");
+                foreach (Control c in s.Members) c.Visible = !collapsed && (c != hdrDisplayRow || showHdrDisplay);
+            }
+            actionsPanel.ResumeLayout();
+        }
+
+        void ToggleSection(string id)
+        {
+            if (!settings.Collapsed.Remove(id)) settings.Collapsed.Add(id);
+            Save();
+            UpdateSections();
+        }
+
         void UpdateActionControls()
         {
             bool editable = EditActions.Editable;
@@ -823,6 +934,7 @@ namespace GameSwitcher.Gui
             if (!nightLightSupported) chkNight.Enabled = chkNightRevert.Enabled = false;
             if (!brightnessSupported && !chkBright.Checked) chkBright.Enabled = numBright.Enabled = chkBrightRevert.Enabled = false;
             cmbAutoHdr.Enabled = editable;
+            UpdateSections();
         }
 
         void ShowActions()
@@ -836,7 +948,7 @@ namespace GameSwitcher.Gui
                 switch (control)
                 {
                     case CheckBox cb: cb.Checked = value is bool b && b; break;
-                    case NumericUpDown n: n.Value = Math.Max(0, Math.Min(100, a[action].Int(field))); break;
+                    case NumericUpDown n: n.Value = Math.Max(n.Minimum, Math.Min(n.Maximum, a[action].Int(field, (int)n.Minimum))); break;
                     case TextBox t: t.Text = value as string ?? ""; break;
                 }
             }
@@ -844,6 +956,7 @@ namespace GameSwitcher.Gui
             FillDeviceCombo(cmbMic, Audio.Input, a["Mic"]);
             FillModeCombo(a["Display"]);
             FillPowerCombo(a["Power"]);
+            FillHdrDisplayCombo(a["Hdr"]);
             string autoHdr = a["AutoHdr"].Str("Mode");
             cmbAutoHdr.SelectedItem = cmbAutoHdr.Items.Cast<Item>().FirstOrDefault(i => i.Code == autoHdr) ?? cmbAutoHdr.Items.Cast<Item>().FirstOrDefault();
             lstClose.Items.Clear(); foreach (string p in a["CloseApps"].Strings("Apps")) lstClose.Items.Add(AppEntry(p));
@@ -870,6 +983,7 @@ namespace GameSwitcher.Gui
             if (cmbDisplay.SelectedItem is DisplayMode m) { a["Display"]["Width"] = m.Width; a["Display"]["Height"] = m.Height; a["Display"]["Hz"] = m.Hz; }
             if (cmbPower.SelectedItem is Item plan) { a["Power"]["PlanId"] = plan.Code; a["Power"]["PlanName"] = plan.Name; }
             if (cmbAutoHdr.SelectedItem is Item hdrMode) a["AutoHdr"]["Mode"] = hdrMode.Code;
+            if (cmbHdrDisplay.SelectedItem is Item hdrDisplay) a["Hdr"]["Display"] = hdrDisplay.Code;
             a["CloseApps"]["Apps"] = lstClose.Items.Cast<Item>().Select(i => i.Code).ToArray();
             a["StartApps"]["Apps"] = lstStart.Items.Cast<Item>().Select(i => i.Code).ToArray();
             UpdateActionControls();
@@ -920,6 +1034,7 @@ namespace GameSwitcher.Gui
                 Game game = SelectedGame;
                 if (game == null) { e.Cancel = true; return; }
                 miLaunch.Enabled = !string.IsNullOrEmpty(game.Launch ?? game.MainExe);
+                miShortcut.Enabled = !demo && miLaunch.Enabled;
                 miOpen.Enabled = File.Exists(game.Path) || Directory.Exists(game.Path);
                 miRemove.Enabled = RemovableSources.Contains(game.Source);
             };
@@ -976,7 +1091,8 @@ namespace GameSwitcher.Gui
                 else if (control is NumericUpDown n) n.ValueChanged += (s, e) => SaveActions();
                 else control.Leave += (s, e) => SaveActions();
             }
-            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower, cmbAutoHdr }) c.SelectedIndexChanged += (s, e) => SaveActions();
+            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower, cmbAutoHdr, cmbHdrDisplay }) c.SelectedIndexChanged += (s, e) => SaveActions();
+            foreach (var s in sections) { string id = s.Id; s.Header.Click += (o, e) => ToggleSection(id); }
             cmbAudio.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbAudio, Audio.Output, EditActions.Actions["Audio"]); loading = false; };
             cmbMic.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbMic, Audio.Input, EditActions.Actions["Mic"]); loading = false; };
 

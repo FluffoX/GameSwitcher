@@ -12,6 +12,8 @@ namespace GameSwitcher.Native
         public uint TargetId;
         public bool HdrSupported, HdrEnabled, UsesNewApi;
         public string Key => AdapterHigh + ":" + AdapterLow + ":" + TargetId;
+        public string DevicePath;   // stable across restarts (the adapter ID in Key is not)
+        public string MonitorId => string.IsNullOrEmpty(DevicePath) ? Name : DevicePath.ToLowerInvariant();
     }
 
     // HDR, SDR brightness and monitor layout via the Windows DisplayConfig API
@@ -99,7 +101,9 @@ namespace GameSwitcher.Native
                 if (!seen.Add(d.Key)) continue;
 
                 var name = new TARGET_NAME { header = MakeHeader(GET_TARGET_NAME, Marshal.SizeOf(typeof(TARGET_NAME)), adapter, id) };
-                d.Name = DisplayConfigGetDeviceInfo(ref name) == 0 && !string.IsNullOrEmpty(name.friendlyName) ? name.friendlyName : "Display " + id;
+                bool named = DisplayConfigGetDeviceInfo(ref name) == 0;
+                d.Name = named && !string.IsNullOrEmpty(name.friendlyName) ? name.friendlyName : "Display " + id;
+                d.DevicePath = named ? name.devicePath : null;
 
                 var c2 = new COLOR_INFO_2 { header = MakeHeader(GET_ADVANCED_COLOR_INFO_2, Marshal.SizeOf(typeof(COLOR_INFO_2)), adapter, id) };
                 if (DisplayConfigGetDeviceInfo(ref c2) == 0)

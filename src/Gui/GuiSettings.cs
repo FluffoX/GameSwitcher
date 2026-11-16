@@ -17,6 +17,8 @@ namespace GameSwitcher.Gui
         public CouchSettings Couch = new CouchSettings();
         // Per-program graphics entries GameSwitcher wrote: program path -> { Original, Written }
         public Dictionary<string, object> GraphicsManaged = new Dictionary<string, object>();
+        // Collapsed sections of the actions panel; the rarely used ones start collapsed
+        public HashSet<string> Collapsed = new HashSet<string> { "input", "graphics" };
         public bool Demo;
 
         public static GuiSettings Load()
@@ -27,6 +29,7 @@ namespace GameSwitcher.Gui
             s.Battery = c.Battery; s.BatteryWarn = c.BatteryWarn; s.BatteryGameStart = c.BatteryGameStart; s.BatteryThreshold = c.BatteryThreshold;
             s.Couch = c.Couch;
             s.GraphicsManaged = c.Raw.Dict("GraphicsManaged") ?? new Dictionary<string, object>();
+            if (c.Raw.ContainsKey("CollapsedSections")) s.Collapsed = new HashSet<string>(c.Raw.Strings("CollapsedSections"));
             var raw = c.Raw;
             foreach (var g in c.Selected) s.Selected[g.Key] = g;
             if (raw.Dict("Profiles") is Dictionary<string, object> profiles)
@@ -72,10 +75,11 @@ namespace GameSwitcher.Gui
                 ["BatteryThreshold"] = BatteryThreshold,
                 ["Couch"] = new Dictionary<string, object>
                 {
-                    ["Enabled"] = Couch.Enabled, ["Revert"] = Couch.Revert, ["Display"] = Couch.Display,
+                    ["Enabled"] = Couch.Enabled, ["Revert"] = Couch.Revert, ["SkipProfile"] = Couch.SkipProfile, ["Display"] = Couch.Display,
                     ["AudioId"] = Couch.AudioId, ["AudioName"] = Couch.AudioName, ["Command"] = Couch.Command
                 },
                 ["GraphicsManaged"] = GraphicsManaged,
+                ["CollapsedSections"] = Collapsed.ToArray(),
                 // all found games, so the service's automatic detection uses the same keys as the list;
                 // with launch information for "Recently played" in the tray menu
                 ["Library"] = library.Where(g => g.Source != "Missing").Select(g => new Dictionary<string, object>

@@ -26,6 +26,11 @@ namespace GameSwitcher
         public VolumeChange Volume { get; set; }
         public PowerChange Power { get; set; }
         public bool KeepAwake { get; set; }
+        public int[] MouseBefore { get; set; }       // pointer acceleration before / as set
+        public int[] MouseSet { get; set; }
+        public VolumeChange MouseSpeed { get; set; } // pointer speed before / as set
+        public int[] AccessBefore { get; set; }      // accessibility shortcut flags before / as set
+        public int[] AccessSet { get; set; }
         public List<string> ClosedApps { get; set; } = new List<string>();
         public List<string> StartedApps { get; set; } = new List<string>();
         public string ScriptEnd { get; set; }
@@ -87,13 +92,15 @@ namespace GameSwitcher
                 Process.Start(new ProcessStartInfo(Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe", "/c " + command) { UseShellExecute = false, CreateNoWindow = true });
         }
 
-        public static void Start(Config config, string gameKey, string gameName)
+        public static void Start(Config config, string gameKey, string gameName, bool couch = false)
         {
             ActionSet cfg = config.ActionsFor(gameKey);
+            // in couch mode the TV setup wins: monitors, resolution, brightness and audio output stay as they are
+            if (couch) Log.Write(T("log.couchSkip"));
             var c = Changes = new ChangeState { GameKey = gameKey, GameName = gameName };
             SaveState();
 
-            if (cfg.On("Monitors"))
+            if (cfg.On("Monitors") && !couch)
                 Step(T("act.monitors"), () =>
                 {
                     if (DisplayConfig.CountActiveDisplays() > 1 && DisplayConfig.DetachSecondary())
@@ -105,7 +112,7 @@ namespace GameSwitcher
                 });
 
             var display = cfg["Display"];
-            if (cfg.On("Display") && display.Int("Width") > 0)
+            if (cfg.On("Display") && display.Int("Width") > 0 && !couch)
                 Step(T("act.display"), () =>
                 {
                     DisplayMode cur = DisplayModes.Current();
@@ -120,10 +127,13 @@ namespace GameSwitcher
             if (cfg.On("Hdr"))
                 Step("HDR", () =>
                 {
-                    foreach (var d in DisplayConfig.GetDisplays().Where(x => x.HdrSupported && !x.HdrEnabled))
+                    string only = cfg["Hdr"].Str("Display");
+                    var hdrDisplays = DisplayConfig.GetDisplays().Where(x => x.HdrSupported).ToList();
+                    if (only.Length > 0 && !hdrDisplays.Any(x => x.MonitorId == only)) Log.Write(T("log.hdrDisplayMissing"));
+                    foreach (var d in hdrDisplays.Where(x => !x.HdrEnabled && (only.Length == 0 || x.MonitorId == only)))
                     {
                         DisplayConfig.SetHdr(d, true);
-                        c.HdrDisplays.Add(d.Key);
+                        c.HdrDisplays.Add(d.MonitorId);
                         Log.Write(T("log.hdrOn", d.Name));
                     }
                     if (c.HdrDisplays.Count > 0) Thread.Sleep(1000);   // let Windows finish the switch
@@ -143,7 +153,7 @@ namespace GameSwitcher
                     }
                 });
 
-            if (cfg.On("Brightness"))
+            if (cfg.On("Brightness") && !couch)
                 Step(T("act.brightness"), () =>
                 {
                     int level = cfg["Brightness"].Int("Level", 80);
@@ -169,7 +179,7 @@ namespace GameSwitcher
             {
                 var a = cfg[kind];
                 string id = a.Str("DeviceId");
-                if (!cfg.On(kind) || id.Length == 0) continue;
+                if (!cfg.On(kind) || id.Length == 0 || (couch && kind == "Audio")) continue;
                 int flow = kind == "Mic" ? Audio.Input : Audio.Output;
                 Step(kind, () =>
                 {
@@ -204,6 +214,8 @@ namespace GameSwitcher
                     c.Power = new PowerChange { PreviousId = active.Id, PreviousName = active.Name };
                     Log.Write(T("log.powerSet", cfg["Power"].Str("PlanName")));
                 });
+
+            StartInput(c, cfg);
 
             if (cfg.On("KeepAwake"))
                 Step(T("act.keepAwake"), () =>
@@ -262,6 +274,69 @@ namespace GameSwitcher
                 });
         }
 
+        // Mouse and keyboard settings for the game (the Windows key is blocked by the service while the game runs)
+        static void StartInput(ChangeState c, ActionSet cfg)
+        {
+            if (cfg.On("MouseAccel"))
+                Step(T("act.mouseAccel"), () =>
+                {
+                    int[] before = Input.GetMouse();
+                    if (before[2] == 0) return;   // already off
+                    var off = new[] { before[0], before[1], 0 };
+                    Input.SetMouse(off);
+                    c.MouseBefore = before; c.MouseSet = off;
+                    Log.Write(T("log.mouseAccelOff"));
+                });
+            if (cfg.On("MouseSpeed"))
+                Step(T("act.mouseSpeed"), () =>
+                {
+                    int speed = Math.Max(1, Math.Min(20, cfg["MouseSpeed"].Int("Level", 10))), before = Input.GetSpeed();
+                    if (before == speed) return;
+                    Input.SetSpeed(speed);
+                    c.MouseSpeed = new VolumeChange { Previous = before, Set = speed };
+                    Log.Write(T("log.mouseSpeedSet", speed));
+                });
+            if (cfg.On("AccessKeys"))
+                Step(T("act.accessKeys"), () =>
+                {
+                    int[] before = Input.GetAccessibilityFlags(), off = Input.WithoutShortcuts(before);
+                    if (before.SequenceEqual(off)) return;
+                    Input.SetAccessibilityFlags(off);
+                    c.AccessBefore = before; c.AccessSet = off;
+                    Log.Write(T("log.accessKeysOff"));
+                });
+        }
+
+        // Only what is still as the game start left it is reverted
+        static void RevertInput(ChangeState c, ActionSet cfg)
+        {
+            void Try(string name, Action body)
+            {
+                try { body(); } catch (Exception ex) { Log.Write(T("log.actionError", name, ex.Message)); }
+            }
+            if (c.MouseBefore != null && cfg.Revert("MouseAccel"))
+                Try(T("act.mouseAccel"), () =>
+                {
+                    if (!Input.GetMouse().SequenceEqual(c.MouseSet)) return;
+                    Input.SetMouse(c.MouseBefore);
+                    Log.Write(T("log.mouseAccelOn"));
+                });
+            if (c.MouseSpeed != null && cfg.Revert("MouseSpeed"))
+                Try(T("act.mouseSpeed"), () =>
+                {
+                    if (Input.GetSpeed() != c.MouseSpeed.Set) return;
+                    Input.SetSpeed(c.MouseSpeed.Previous);
+                    Log.Write(T("log.mouseSpeedSet", c.MouseSpeed.Previous));
+                });
+            if (c.AccessBefore != null && cfg.Revert("AccessKeys"))
+                Try(T("act.accessKeys"), () =>
+                {
+                    if (!Input.GetAccessibilityFlags().SequenceEqual(c.AccessSet)) return;
+                    Input.SetAccessibilityFlags(c.AccessBefore);
+                    Log.Write(T("log.accessKeysOn"));
+                });
+        }
+
         // Reverts what Start changed (or what a crashed session left behind, see LoadPending).
         // Only what is still as the service left it is reverted: manual changes during the game win.
         public static void End(Config config)
@@ -303,6 +378,7 @@ namespace GameSwitcher
             }
 
             if (c.KeepAwake) KeepAwake.Set(false);
+            RevertInput(c, cfg);
 
             if (c.Power != null && cfg.Revert("Power"))
             {
@@ -402,7 +478,7 @@ namespace GameSwitcher
                 {
                     try
                     {
-                        foreach (var d in DisplayConfig.GetDisplays().Where(x => c.HdrDisplays.Contains(x.Key) && x.HdrEnabled))
+                        foreach (var d in DisplayConfig.GetDisplays().Where(x => (c.HdrDisplays.Contains(x.MonitorId) || c.HdrDisplays.Contains(x.Key)) && x.HdrEnabled))
                         {
                             DisplayConfig.SetHdr(d, false);
                             Log.Write(T("log.hdrOff", d.Name));

@@ -5,6 +5,7 @@
 //   GameSwitcher.exe --install    sets up autostart and the Start menu entry and starts the service
 //   GameSwitcher.exe --uninstall  stops the service and removes autostart and the Start menu entry
 //   GameSwitcher.exe --stop       asks the service to revert its changes and exit (used by the setup)
+//   GameSwitcher.exe --launch "<game key>"   applies the game's profile, then starts the game (desktop shortcuts)
 using System;
 using System.IO;
 using System.Linq;
@@ -33,6 +34,13 @@ namespace GameSwitcher
                 if (HasArg("--install")) { Autostart.Enable(startNow: true); return 0; }
                 if (HasArg("--uninstall")) { Autostart.Uninstall(); return 0; }
                 if (HasArg("--stop")) { Autostart.StopService(); return 0; }
+                int launch = Array.FindIndex(args, a => string.Equals(a, "--launch", StringComparison.OrdinalIgnoreCase));
+                if (launch >= 0 && launch + 1 < args.Length)
+                {
+                    string key = args[launch + 1];
+                    Launcher.Request(key, Launcher.TargetFor(Config.Load(), key));
+                    return 0;
+                }
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
@@ -42,7 +50,7 @@ namespace GameSwitcher
             catch (Exception ex)
             {
                 Paths.WriteErrorLog(ex.ToString());
-                if (!HasArg("--watcher") && !HasArg("--uninstall") && !HasArg("--stop") && !HasArg("--install")) MessageBox.Show(ex.Message, "GameSwitcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!HasArg("--watcher") && !HasArg("--uninstall") && !HasArg("--stop") && !HasArg("--install") && !HasArg("--launch")) MessageBox.Show(ex.Message, "GameSwitcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }
