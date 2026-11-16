@@ -25,7 +25,7 @@ namespace GameSwitcher.Gui
         readonly ComboBox cmbRange = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         readonly Chart chart = new Chart { Dock = DockStyle.Fill };
         readonly ListView table = new ListView { Dock = DockStyle.Right, View = View.Details, FullRowSelect = true, HeaderStyle = ColumnHeaderStyle.Nonclickable };
-        readonly Label lblTotal = new Label { AutoSize = true }, lblHint = new Label { AutoSize = true, Tag = "keepColor", ForeColor = Color.Gray };
+        readonly Label lblTotal = new Label { AutoSize = true }, lblHint = new Label { AutoSize = true, Tag = "hint" };
 
         public StatsDialog(Form owner, Dictionary<string, Dictionary<string, object>> playtime, bool dark)
         {

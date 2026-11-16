@@ -170,7 +170,7 @@ namespace GameSwitcher.Gui
             lblAutoHdr = NewLabel(new Padding(3, 9, 3, 3));
             cmbAutoHdr = NewCombo(Px(170)); cmbAutoHdr.Margin = new Padding(3, 6, 3, 2);
             autoHdrRow.Controls.AddRange(new Control[] { lblAutoHdr, cmbAutoHdr });
-            lblGraphicsHint = NewLabel(new Padding(3, 2, 3, 2)); lblGraphicsHint.MaximumSize = new Size(innerWidth, 0); lblGraphicsHint.ForeColor = ColorOff; lblGraphicsHint.Tag = "keepColor";
+            lblGraphicsHint = NewLabel(new Padding(3, 2, 3, 2)); lblGraphicsHint.MaximumSize = new Size(innerWidth, 0); lblGraphicsHint.Tag = "hint";
 
             secPrograms = NewSection();
             chkClose = NewCheck(0, 2); lstClose = NewAppList();
@@ -387,6 +387,9 @@ namespace GameSwitcher.Gui
 
         public string ThemeSetting => settings.Theme;
 
+        // Gray for "off" and missing entries, lighter in the dark design
+        Color OffColor => Theme.IsDark(settings.Theme) ? Theme.DarkGray : ColorOff;
+
         public void ApplyTheme() => Theme.Apply(this, Theme.IsDark(settings.Theme), new[] { menu, addMenu, pauseMenu }, lblHdr);
 
         public void ChangeLanguage(string code)
@@ -407,6 +410,9 @@ namespace GameSwitcher.Gui
             Save();
             ApplyTheme();
             UpdateBatteryLabel();
+            UpdateHdr();
+            ShowGames();
+            list.Invalidate(true);
         }
 
         #endregion
@@ -450,13 +456,13 @@ namespace GameSwitcher.Gui
             if (demo)
             {
                 hdrDisplays = new List<HdrDisplay>();
-                lblHdr.Text = "● " + T("hdr.off") + "  –  Monitor"; lblHdr.ForeColor = ColorOff; btnToggleHdr.Text = T("btn.hdrOn");
+                lblHdr.Text = "● " + T("hdr.off") + "  –  Monitor"; lblHdr.ForeColor = OffColor; btnToggleHdr.Text = T("btn.hdrOn");
                 return;
             }
             try { hdrDisplays = DisplayConfig.GetDisplays().Where(d => d.HdrSupported).ToList(); } catch { hdrDisplays = new List<HdrDisplay>(); }
             if (hdrDisplays.Count == 0)
             {
-                lblHdr.Text = "● " + T("hdr.none"); lblHdr.ForeColor = ColorOff;
+                lblHdr.Text = "● " + T("hdr.none"); lblHdr.ForeColor = OffColor;
                 btnToggleHdr.Text = T("btn.hdrOn"); btnToggleHdr.Enabled = false;
                 return;
             }
@@ -465,7 +471,7 @@ namespace GameSwitcher.Gui
             string names = hdrDisplays.Count == 1 ? hdrDisplays[0].Name
                 : string.Join(", ", hdrDisplays.Select(d => d.Name + ": " + (d.HdrEnabled ? T("hdr.displayOn") : T("hdr.displayOff"))));
             lblHdr.Text = $"● {state}  –  {names}";
-            lblHdr.ForeColor = on > 0 ? ColorOn : ColorOff;
+            lblHdr.ForeColor = on > 0 ? ColorOn : OffColor;
             btnToggleHdr.Enabled = true;
             btnToggleHdr.Text = on > 0 ? T("btn.hdrOff") : T("btn.hdrOn");
         }
@@ -618,7 +624,7 @@ namespace GameSwitcher.Gui
                 item.SubItems.Add(ProfileText(game));
                 item.SubItems.Add(""); item.SubItems.Add("");
                 item.SubItems.Add(string.Join(", ", game.Exes));
-                if (game.Source == "Missing") item.ForeColor = ColorOff;
+                if (game.Source == "Missing") item.ForeColor = OffColor;
                 SetPlaytimeCells(item, playtime);
                 list.Items.Add(item);
                 if (game.Key == keep) item.Selected = true;

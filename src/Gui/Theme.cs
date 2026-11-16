@@ -63,14 +63,17 @@ namespace GameSwitcher.Gui
                             break;
                         default:
                             c.BackColor = back;
-                            if (c != keepForeColor && !(c.Tag is string tag && tag == "keepColor")) c.ForeColor = text;   // e.g. gray hints
+                            if (c.Tag is string hint && hint == "hint") c.ForeColor = dark ? DarkGray : Color.FromArgb(100, 100, 100);
+                            else if (c != keepForeColor && !(c.Tag is string tag && tag == "keepColor")) c.ForeColor = text;
                             break;
                     }
+                    if ((c is CheckBox || c is Button) && Hooked.Add(c)) c.Paint += PaintDisabledText;
                     if (c is ListView lv)
                     {
                         SetDarkControl(lv.Handle, dark, "DarkMode_Explorer", "Explorer");
                         IntPtr header = SendMessage(lv.Handle, 0x101F, IntPtr.Zero, IntPtr.Zero);   // LVM_GETHEADER
                         SetDarkControl(header, dark, "DarkMode_ItemsView", "ItemsView");
+                        if (Hooked.Add(lv)) DrawHeaderItself(lv);
                     }
                     if (c.Controls.Count > 0) ApplyTo(c);
                 }
@@ -87,6 +90,60 @@ namespace GameSwitcher.Gui
             int v = dark ? 1 : 0;
             DwmSetWindowAttribute(window.Handle, 20, ref v, 4);   // dark title bar
             FitCheckBoxes(window);
+        }
+
+        // Light gray for secondary texts in the dark design (hints, "off", disabled options)
+        public static readonly Color DarkGray = Color.FromArgb(160, 160, 160);
+        static readonly HashSet<Control> Hooked = new HashSet<Control>();
+
+        static bool IsDarkBack(Color c) => c.GetBrightness() < 0.4f;
+
+        // Windows draws the text of disabled checkboxes and buttons in a fixed dark gray that is hardly
+        // readable on a dark background: in the dark design it is drawn again in a lighter gray
+        static void PaintDisabledText(object sender, PaintEventArgs e)
+        {
+            var c = (Control)sender;
+            if (c.Enabled || !IsDarkBack(c.BackColor) || string.IsNullOrEmpty(c.Text)) return;
+            var color = Color.FromArgb(140, 140, 140);
+            if (c is CheckBox cb)
+            {
+                int glyph = CheckBoxRenderer.GetGlyphSize(e.Graphics, System.Windows.Forms.VisualStyles.CheckBoxState.UncheckedDisabled).Width;
+                var area = new Rectangle(glyph + 1, 0, cb.Width - glyph - 1, cb.Height);
+                using (var b = new SolidBrush(cb.BackColor)) e.Graphics.FillRectangle(b, area);
+                var flags = TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix;
+                int left = glyph + cb.LogicalToDeviceUnits(3);
+                Size size = TextRenderer.MeasureText(e.Graphics, cb.Text, cb.Font, new Size(cb.Width - left, 0), flags);
+                var textArea = new Rectangle(left, Math.Max(0, (cb.Height - size.Height) / 2), cb.Width - left, size.Height);
+                TextRenderer.DrawText(e.Graphics, cb.Text, cb.Font, textArea, color, flags);
+            }
+            else
+            {
+                var area = Rectangle.Inflate(c.ClientRectangle, -2, -2);
+                using (var b = new SolidBrush(c.BackColor)) e.Graphics.FillRectangle(b, area);
+                TextRenderer.DrawText(e.Graphics, c.Text, c.Font, area, color, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+        }
+
+        // The dark list header theme draws its texts too dark: the header is drawn here, the rows by Windows
+        static void DrawHeaderItself(ListView lv)
+        {
+            lv.OwnerDraw = true;
+            lv.DrawItem += (s, e) => e.DrawDefault = true;
+            lv.DrawSubItem += (s, e) => e.DrawDefault = true;
+            lv.DrawColumnHeader += (s, e) =>
+            {
+                if (!IsDarkBack(lv.BackColor)) { e.DrawDefault = true; return; }
+                using (var back = new SolidBrush(Color.FromArgb(40, 40, 40))) e.Graphics.FillRectangle(back, e.Bounds);
+                using (var line = new Pen(Color.FromArgb(70, 70, 70)))
+                {
+                    e.Graphics.DrawLine(line, e.Bounds.Right - 1, e.Bounds.Top + 3, e.Bounds.Right - 1, e.Bounds.Bottom - 4);
+                    e.Graphics.DrawLine(line, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                }
+                var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix |
+                            (e.Header.TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left);
+                var area = Rectangle.Inflate(e.Bounds, -lv.LogicalToDeviceUnits(6), 0);
+                TextRenderer.DrawText(e.Graphics, e.Header.Text, lv.Font, area, Color.FromArgb(220, 220, 220), flags);
+            };
         }
 
         // Checkboxes with a width limit (Tag) wrap long texts onto several lines instead of cutting them off

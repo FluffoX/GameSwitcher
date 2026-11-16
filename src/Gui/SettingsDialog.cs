@@ -47,7 +47,7 @@ namespace GameSwitcher.Gui
 
         static CheckBox NewCheck(Padding margin) => new CheckBox { AutoSize = true, Margin = margin };
         static Label NewLabel(Padding margin) => new Label { AutoSize = true, Margin = margin };
-        static Label NewHint(Padding margin) => new Label { AutoSize = true, Margin = margin, ForeColor = Color.Gray, Tag = "keepColor" };
+        static Label NewHint(Padding margin) => new Label { AutoSize = true, Margin = margin, Tag = "hint" };
         static Label NewSection(Padding margin) => new Label { AutoSize = true, Margin = margin };
 
         Button NewButton(Padding margin) => new Button
