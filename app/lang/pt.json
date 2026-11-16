@@ -178,7 +178,7 @@
   "setup.title": "Bem-vindo ao GameSwitcher",
   "setup.text": "O GameSwitcher roda em segundo plano e alterna suas configurações assim que você inicia um jogo.\n\nO GameSwitcher deve iniciar automaticamente com o Windows? Também será adicionada uma entrada no menu Iniciar. Você pode mudar isso depois em Configurações.\n\nSim = iniciar com o Windows (recomendado)\nNão = somente até a próxima reinicialização",
   "opt.trayHdr": "O ícone da bandeja alterna o HDR: um clique liga ou desliga e o ícone mostra o estado (colorido com ponto verde = ligado, cinza = desligado)",
-  "act.brightness": "Definir o brilho do monitor (DDC/CI) para",
+  "act.brightness": "Definir o brilho do monitor para",
   "act.brightnessRevert": "restaurar o brilho anterior após o jogo",
   "sec.graphics": "Gráficos (por jogo, guardado pelo Windows)",
   "act.gpu": "Usar a placa gráfica de alto desempenho (PCs com dois chips gráficos, p. ex. portáteis)",
@@ -194,7 +194,7 @@
   "battery.low": "fraca",
   "battery.medium": "média",
   "battery.full": "cheia",
-  "battery.hint": "Comandos Xbox e PlayStation, dispositivos sem fios Logitech e dispositivos Bluetooth que informam a bateria ao Windows.",
+  "battery.hint": "Comandos de qualquer marca (compatíveis com Xbox, PlayStation, Nintendo), dispositivos sem fios Logitech e qualquer dispositivo que informe a bateria ao Windows por USB, recetor sem fios ou Bluetooth.",
   "settings.general": "Geral",
   "settings.comfort": "Extras",
   "settings.battery": "Baterias",
@@ -233,5 +233,6 @@
   "stats.hours": "Horas",
   "stats.other": "Outros",
   "stats.total": "Total: {0}",
-  "stats.noData": "O tempo de jogo por dia é registado a partir da versão 2.5."
+  "stats.noData": "O tempo de jogo por dia é registado a partir da versão 2.5.",
+  "monitor.internal": "Ecrã integrado"
 }

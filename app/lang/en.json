@@ -178,7 +178,7 @@
   "setup.title": "Welcome to GameSwitcher",
   "setup.text": "GameSwitcher runs in the background and switches your settings as soon as you start a game.\n\nShould GameSwitcher start automatically with Windows? A Start menu entry will be added as well. You can change this later under Settings.\n\nYes = start with Windows (recommended)\nNo = run only until the next restart",
   "opt.trayHdr": "Tray icon switches HDR: a click toggles HDR, the icon shows the state (colored with a green dot = on, gray = off)",
-  "act.brightness": "Set monitor brightness (DDC/CI) to",
+  "act.brightness": "Set monitor brightness to",
   "act.brightnessRevert": "restore the previous brightness after the game",
   "sec.graphics": "Graphics (per game, stored by Windows)",
   "act.gpu": "Use the high-performance graphics card (for PCs with two graphics chips, e.g. laptops)",
@@ -194,7 +194,7 @@
   "battery.low": "low",
   "battery.medium": "medium",
   "battery.full": "full",
-  "battery.hint": "Xbox and PlayStation controllers, Logitech wireless devices and Bluetooth devices that report their battery to Windows.",
+  "battery.hint": "Controllers of any brand (Xbox-compatible, PlayStation, Nintendo), Logitech wireless devices and any device that reports its battery to Windows via USB, wireless receiver or Bluetooth.",
   "settings.general": "General",
   "settings.comfort": "Extras",
   "settings.battery": "Batteries",
@@ -233,5 +233,6 @@
   "stats.hours": "Hours",
   "stats.other": "Other",
   "stats.total": "Total: {0}",
-  "stats.noData": "Play time per day is recorded from version 2.5 on."
+  "stats.noData": "Play time per day is recorded from version 2.5 on.",
+  "monitor.internal": "Built-in display"
 }

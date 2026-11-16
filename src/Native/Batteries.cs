@@ -31,9 +31,10 @@ namespace GameSwitcher.Native
         public List<Battery> Devices { get; set; } = new List<Battery>();
     }
 
-    // Reads battery levels of gaming devices; every source is best effort and never throws:
-    // Xbox controllers (XInput), PlayStation controllers (HID input reports),
-    // Logitech wireless devices (HID++ 2.0) and Bluetooth devices that report a level to Windows.
+    // Reads battery levels of gaming devices of any brand; every source is best effort and never throws:
+    // XInput controllers (Xbox and compatible), PlayStation and Nintendo controllers (HID input reports),
+    // Logitech wireless devices (HID++ 2.0), any HID device with the standard battery value
+    // and Bluetooth devices that report a level to Windows.
     static class Batteries
     {
         public static List<Battery> Read()
@@ -47,31 +48,36 @@ namespace GameSwitcher.Native
             try { hid = Hid.Enumerate(); } catch { hid = new List<HidInterface>(); }
             Add(XInput);
             Add(() => PlayStation(hid));
+            Add(() => Nintendo(hid));
             Add(() => Logitech(hid));
+            Add(() => StandardHid(hid));
             Add(Bluetooth);
             // the same device can appear through two sources: keep the more precise entry
             return result.GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
                          .Select(g => g.OrderByDescending(b => b.Percent).First()).ToList();
         }
 
-        // Is a game controller connected (couch mode)? Xbox controllers and HID gamepads, e.g. PlayStation
-        public static bool ControllerConnected()
+        // Connected game controllers (couch mode), as stable IDs: XInput slots and HID gamepads/joysticks
+        // of any brand. Keyboards, mice and KVM adapters sometimes add a gamepad collection: a controller
+        // only counts if its device has no keyboard or mouse collection and it sends full reports.
+        public static HashSet<string> ConnectedControllers()
         {
-            try { if (XInputSlots().Any()) return true; } catch { }
+            var ids = new HashSet<string>();
+            try { foreach (int slot in XInputSlots()) ids.Add("xinput:" + slot); } catch { }
             try
             {
-                // Keyboards, mice and KVM adapters sometimes add a gamepad collection: a gamepad only counts
-                // if its device has no keyboard or mouse collection and it sends full reports
                 var hid = Hid.Enumerate();
                 var inputDevices = new HashSet<string>(hid.Where(d => d.UsagePage == 1 && (d.Usage == 2 || d.Usage == 6)).Select(DeviceOf));
-                return hid.Any(d => d.UsagePage == 1 && d.Usage == 5 && d.InputLength >= 6 && !inputDevices.Contains(DeviceOf(d)));
+                foreach (var d in hid.Where(d => d.UsagePage == 1 && (d.Usage == 4 || d.Usage == 5) && d.InputLength >= 6 && !inputDevices.Contains(DeviceOf(d))))
+                    ids.Add(DeviceOf(d));
             }
-            catch { return false; }
+            catch { }
+            return ids;
         }
 
         // The physical interface of a HID collection: its path without the collection number,
         // e.g. \\?\hid#vid_413d&pid_2107&mi_00&col03#9&10cd9d74&0&0002#{...} -> vid_413d&pid_2107&mi_00#9&10cd9d74&0
-        static string DeviceOf(HidInterface d)
+        public static string DeviceOf(HidInterface d)
         {
             var m = System.Text.RegularExpressions.Regex.Match(d.Path.ToLowerInvariant(), @"hid#([^#]*?)(&col[0-9a-f]+)?#([^#]*?)(&[0-9a-f]{4})?#");
             return m.Success ? m.Groups[1].Value + "#" + m.Groups[3].Value : d.Path.ToLowerInvariant();
@@ -94,7 +100,8 @@ namespace GameSwitcher.Native
                 if (XInputGetBatteryInformation(i, 0, out var info) != 0) continue;
                 if (info.BatteryType != 2 && info.BatteryType != 3) continue;   // alkaline or NiMH; wired and unknown have no level
                 string level = info.BatteryLevel == 0 ? "empty" : info.BatteryLevel == 1 ? "low" : info.BatteryLevel == 2 ? "medium" : "full";
-                yield return new Battery { Name = "Xbox Controller" + (slots.Count > 1 ? " " + (i + 1) : ""), Kind = "controller", Level = level };
+                // XInput does not tell the model (Xbox, 8BitDo, ...): the slot number tells controllers apart
+                yield return new Battery { Name = "Controller " + (i + 1), Kind = "controller", Level = level };
             }
         }
 
@@ -151,6 +158,67 @@ namespace GameSwitcher.Native
             bool cable = (r[at] & 0x10) != 0;
             if (cable && level >= 11) return new Battery { Kind = "controller", Percent = 100 };
             return new Battery { Kind = "controller", Percent = Math.Min(level * 10 + 5, 100), Charging = cable };
+        }
+
+        #endregion
+
+        #region Nintendo (Switch Pro Controller, Joy-Con) and standard HID battery
+
+        static readonly Dictionary<int, string> NintendoNames = new Dictionary<int, string>
+        {
+            [0x2009] = "Pro Controller", [0x2006] = "Joy-Con (L)", [0x2007] = "Joy-Con (R)", [0x200E] = "Joy-Con"
+        };
+
+        static IEnumerable<Battery> Nintendo(List<HidInterface> hid)
+        {
+            foreach (var d in hid.Where(d => d.Vid == 0x057E && NintendoNames.ContainsKey(d.Pid)))
+            {
+                Battery b = null;
+                using (var h = Hid.Handle.Open(d))
+                {
+                    if (h == null) continue;
+                    for (int tries = 0; tries < 4 && b == null; tries++)
+                    {
+                        byte[] r = h.Read(250);
+                        if (r == null) break;
+                        b = ParseNintendo(r);
+                    }
+                }
+                if (b != null) { b.Name = NintendoNames[d.Pid]; yield return b; }
+            }
+        }
+
+        // Full input reports (0x21, 0x30, 0x31; sent once a game or Steam has switched the controller to them):
+        // byte 2, high nibble: 8 full, 6 medium, 4 low, 2 critical, 0 empty; +1 while charging
+        static Battery ParseNintendo(byte[] r)
+        {
+            if (r.Length < 13 || (r[0] != 0x21 && r[0] != 0x30 && r[0] != 0x31)) return null;
+            int nibble = r[2] >> 4, level = nibble & 0x0E;
+            return new Battery
+            {
+                Kind = "controller", Charging = (nibble & 1) != 0,
+                Level = level >= 8 ? "full" : level >= 6 ? "medium" : level >= 2 ? "low" : "empty"
+            };
+        }
+
+        // Any other HID device that reports the standard "Battery Strength" value (many wireless
+        // gamepads, keyboards, mice and headsets); named after the product string of the device
+        static IEnumerable<Battery> StandardHid(List<HidInterface> hid)
+        {
+            var handled = new HashSet<int> { 0x054C, 0x057E };   // read above in their own format
+            var done = new HashSet<string>();
+            foreach (var d in hid.Where(d => d.BatteryReportType >= 0 && !handled.Contains(d.Vid)))
+            {
+                string device = DeviceOf(d);
+                if (done.Contains(device)) continue;
+                int percent = Hid.ReadBatteryStrength(d);
+                if (percent < 0) continue;
+                done.Add(device);
+                var collections = hid.Where(x => DeviceOf(x) == device && x.UsagePage == 1).Select(x => x.Usage).ToList();
+                string kind = collections.Contains(4) || collections.Contains(5) ? "controller" : collections.Contains(2) ? "mouse" : collections.Contains(6) ? "keyboard" : GuessKind(d.Product ?? "");
+                string name = !string.IsNullOrEmpty(d.Product) ? d.Product : $"HID {d.Vid:X4}:{d.Pid:X4}";
+                yield return new Battery { Name = name, Kind = kind, Percent = percent };
+            }
         }
 
         #endregion
@@ -236,8 +304,22 @@ namespace GameSwitcher.Native
         static Battery LogitechDevice(Hid.Handle h, byte device)
         {
             var b = new Battery();
-            byte unified = FeatureIndex(h, device, 0x1004), status = unified == 0 ? FeatureIndex(h, device, 0x1000) : (byte)0;
-            if (unified != 0)
+            // devices report their battery through one of four features, newest first
+            byte unified = FeatureIndex(h, device, 0x1004), status = 0, voltage = 0, adc = 0;
+            if (unified == 0) status = FeatureIndex(h, device, 0x1000);
+            if (unified == 0 && status == 0) voltage = FeatureIndex(h, device, 0x1001);
+            if (unified == 0 && status == 0 && voltage == 0) adc = FeatureIndex(h, device, 0x1F20);
+            if (voltage != 0 || adc != 0)
+            {
+                // battery voltage (many Lightspeed mice) or ADC measurement (headsets): millivolts plus flags
+                byte[] r = Request(h, device, voltage != 0 ? voltage : adc, 0);
+                if (r == null) return null;
+                int mv = (r[4] << 8) | r[5], flags = r[6];
+                if (adc != 0 && (flags & 1) == 0) return null;   // headset switched off
+                b.Percent = PercentFromVoltage(mv);
+                b.Charging = voltage != 0 ? (flags & 0x80) != 0 : (flags & 2) != 0;
+            }
+            else if (unified != 0)
             {
                 byte[] r = Request(h, device, unified, 1);
                 if (r == null) return null;
@@ -277,11 +359,31 @@ namespace GameSwitcher.Native
             return b;
         }
 
+        // Remaining charge of a lithium battery by its voltage (typical discharge curve, as used by Solaar)
+        static readonly int[,] VoltageCurve =
+        {
+            { 4186, 100 }, { 4067, 90 }, { 3989, 80 }, { 3922, 70 }, { 3859, 60 }, { 3811, 50 },
+            { 3778, 40 }, { 3751, 30 }, { 3717, 20 }, { 3671, 10 }, { 3646, 5 }, { 3579, 2 }, { 3500, 0 }
+        };
+
+        public static int PercentFromVoltage(int millivolts)
+        {
+            if (millivolts >= VoltageCurve[0, 0]) return 100;
+            for (int i = 1; i < VoltageCurve.GetLength(0); i++)
+            {
+                int v = VoltageCurve[i, 0], p = VoltageCurve[i, 1], vHigh = VoltageCurve[i - 1, 0], pHigh = VoltageCurve[i - 1, 1];
+                if (millivolts >= v) return p + (int)Math.Round((millivolts - v) * (pHigh - p) / (double)(vHigh - v));
+            }
+            return 0;
+        }
+
         static IEnumerable<Battery> Logitech(List<HidInterface> hid)
         {
             if (DateTime.UtcNow - logitechTime < LogitechInterval) return logitechCache;
             var result = new List<Battery>();
-            foreach (var d in hid.Where(d => d.Vid == 0x046D && d.UsagePage == 0xFF00 && d.Usage == 2 && d.OutputLength >= 20))
+            // HID++ long reports: page FF00 usage 2 (USB receivers and cables), page FF43 usage 0x0202 (Bluetooth)
+            foreach (var d in hid.Where(d => d.Vid == 0x046D && d.OutputLength >= 20 &&
+                                             ((d.UsagePage == 0xFF00 && d.Usage == 2) || (d.UsagePage == 0xFF43 && d.Usage == 0x0202))))
             {
                 using (var h = Hid.Handle.Open(d, write: true))
                 {

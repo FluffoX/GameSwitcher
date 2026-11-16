@@ -178,7 +178,7 @@
   "setup.title": "Benvenuto in GameSwitcher",
   "setup.text": "GameSwitcher funziona in background e cambia le tue impostazioni non appena avvii un gioco.\n\nVuoi che GameSwitcher si avvii automaticamente con Windows? Verrà aggiunta anche una voce al menu Start. Puoi modificarlo in seguito nelle impostazioni.\n\nSì = avvia con Windows (consigliato)\nNo = solo fino al prossimo riavvio",
   "opt.trayHdr": "L'icona nell'area di notifica attiva l'HDR: un clic lo attiva o disattiva e l'icona mostra lo stato (a colori con punto verde = attivo, grigia = disattivato)",
-  "act.brightness": "Imposta la luminosità del monitor (DDC/CI) a",
+  "act.brightness": "Imposta la luminosità del monitor a",
   "act.brightnessRevert": "ripristina la luminosità precedente dopo il gioco",
   "sec.graphics": "Grafica (per gioco, salvata da Windows)",
   "act.gpu": "Usa la scheda grafica ad alte prestazioni (PC con due chip grafici, ad es. portatili)",
@@ -194,7 +194,7 @@
   "battery.low": "bassa",
   "battery.medium": "media",
   "battery.full": "piena",
-  "battery.hint": "Controller Xbox e PlayStation, dispositivi wireless Logitech e dispositivi Bluetooth che comunicano la batteria a Windows.",
+  "battery.hint": "Controller di qualsiasi marca (compatibili Xbox, PlayStation, Nintendo), dispositivi wireless Logitech e qualsiasi dispositivo che comunica la batteria a Windows tramite USB, ricevitore wireless o Bluetooth.",
   "settings.general": "Generale",
   "settings.comfort": "Extra",
   "settings.battery": "Batterie",
@@ -233,5 +233,6 @@
   "stats.hours": "Ore",
   "stats.other": "Altri",
   "stats.total": "Totale: {0}",
-  "stats.noData": "Il tempo di gioco giornaliero viene registrato dalla versione 2.5."
+  "stats.noData": "Il tempo di gioco giornaliero viene registrato dalla versione 2.5.",
+  "monitor.internal": "Schermo integrato"
 }

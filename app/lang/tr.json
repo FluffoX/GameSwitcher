@@ -178,7 +178,7 @@
   "setup.title": "GameSwitcher'a hoş geldiniz",
   "setup.text": "GameSwitcher arka planda çalışır ve bir oyun başlattığınız anda ayarlarınızı değiştirir.\n\nGameSwitcher Windows ile birlikte otomatik başlasın mı? Başlat menüsüne de bir kısayol eklenir. Bunu daha sonra Ayarlar'dan değiştirebilirsiniz.\n\nEvet = Windows ile başlat (önerilir)\nHayır = yalnızca bir sonraki yeniden başlatmaya kadar",
   "opt.trayHdr": "Bildirim alanı simgesi HDR'yi değiştirir: bir tıklama HDR'yi açar veya kapatır, simge durumu gösterir (yeşil noktalı renkli = açık, gri = kapalı)",
-  "act.brightness": "Monitör parlaklığını (DDC/CI) şuna ayarla:",
+  "act.brightness": "Monitör parlaklığını şuna ayarla:",
   "act.brightnessRevert": "oyundan sonra önceki parlaklığı geri yükle",
   "sec.graphics": "Grafik (oyun başına, Windows tarafından kaydedilir)",
   "act.gpu": "Yüksek performanslı ekran kartını kullan (iki grafik yongalı PC'ler, ör. dizüstüler)",
@@ -194,7 +194,7 @@
   "battery.low": "düşük",
   "battery.medium": "orta",
   "battery.full": "dolu",
-  "battery.hint": "Xbox ve PlayStation kumandaları, Logitech kablosuz cihazlar ve pil durumunu Windows'a bildiren Bluetooth cihazları.",
+  "battery.hint": "Her markadan kumandalar (Xbox uyumlu, PlayStation, Nintendo), Logitech kablosuz cihazlar ve pil durumunu USB, kablosuz alıcı veya Bluetooth ile Windows'a bildiren tüm cihazlar.",
   "settings.general": "Genel",
   "settings.comfort": "Ekstralar",
   "settings.battery": "Piller",
@@ -233,5 +233,6 @@
   "stats.hours": "Saat",
   "stats.other": "Diğer",
   "stats.total": "Toplam: {0}",
-  "stats.noData": "Günlük oyun süresi 2.5 sürümünden itibaren kaydedilir."
+  "stats.noData": "Günlük oyun süresi 2.5 sürümünden itibaren kaydedilir.",
+  "monitor.internal": "Dahili ekran"
 }

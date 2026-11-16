@@ -178,7 +178,7 @@
   "setup.title": "Willkommen bei GameSwitcher",
   "setup.text": "GameSwitcher läuft im Hintergrund und schaltet deine Einstellungen um, sobald du ein Spiel startest.\n\nSoll GameSwitcher automatisch mit Windows starten? Dabei wird auch ein Eintrag im Startmenü angelegt. Du kannst das später unter Einstellungen ändern.\n\nJa = mit Windows starten (empfohlen)\nNein = nur bis zum nächsten Neustart",
   "opt.trayHdr": "Tray-Symbol schaltet HDR: ein Klick schaltet HDR um, das Symbol zeigt den Zustand (farbig mit grünem Punkt = an, grau = aus)",
-  "act.brightness": "Monitor-Helligkeit (DDC/CI) setzen auf",
+  "act.brightness": "Monitor-Helligkeit setzen auf",
   "act.brightnessRevert": "nach Spielende vorherige Helligkeit wiederherstellen",
   "sec.graphics": "Grafik (pro Spiel, von Windows gespeichert)",
   "act.gpu": "Leistungsstarke Grafikkarte verwenden (bei PCs mit zwei Grafikchips, z. B. Laptops)",
@@ -194,7 +194,7 @@
   "battery.low": "niedrig",
   "battery.medium": "mittel",
   "battery.full": "voll",
-  "battery.hint": "Xbox- und PlayStation-Controller, Logitech-Funkgeräte und Bluetooth-Geräte, die ihren Akkustand an Windows melden.",
+  "battery.hint": "Controller aller Marken (Xbox-kompatibel, PlayStation, Nintendo), Logitech-Funkgeräte und alle Geräte, die ihren Akkustand per USB, Funkempfänger oder Bluetooth an Windows melden.",
   "settings.general": "Allgemein",
   "settings.comfort": "Extras",
   "settings.battery": "Akkus",
@@ -233,5 +233,6 @@
   "stats.hours": "Stunden",
   "stats.other": "Sonstige",
   "stats.total": "Gesamt: {0}",
-  "stats.noData": "Die Spielzeit pro Tag wird ab Version 2.5 aufgezeichnet."
+  "stats.noData": "Die Spielzeit pro Tag wird ab Version 2.5 aufgezeichnet.",
+  "monitor.internal": "Integrierter Bildschirm"
 }

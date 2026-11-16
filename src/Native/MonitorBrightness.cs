@@ -10,7 +10,7 @@ namespace GameSwitcher.Native
         public int Percent;
     }
 
-    // Hardware brightness of external monitors via DDC/CI (dxva2). Monitors without DDC/CI are skipped.
+    // Brightness of external monitors via DDC/CI (dxva2) and of built-in screens via WMI; others are skipped.
     static class MonitorBrightness
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -49,12 +49,26 @@ namespace GameSwitcher.Native
             }
         }
 
+        // External monitors via DDC/CI and built-in screens (laptops, tablets) via WMI
         public static List<MonitorLevel> Get()
         {
             var result = new List<MonitorLevel>();
             ForEach((key, name, h, min, cur, max) =>
                 result.Add(new MonitorLevel { Key = key, Name = name, Percent = (int)Math.Round((cur - min) * 100.0 / (max - min)) }));
+            try
+            {
+                foreach (var m in Wmi("WmiMonitorBrightness"))
+                    using (m)
+                        result.Add(new MonitorLevel { Key = "wmi:" + m["InstanceName"], Name = Strings.T("monitor.internal"), Percent = Convert.ToInt32(m["CurrentBrightness"]) });
+            }
+            catch { }   // no built-in screen
             return result;
+        }
+
+        static System.Collections.Generic.IEnumerable<System.Management.ManagementObject> Wmi(string cls)
+        {
+            using (var searcher = new System.Management.ManagementObjectSearcher(@"root\wmi", "SELECT * FROM " + cls + " WHERE Active = TRUE"))
+                foreach (System.Management.ManagementObject m in searcher.Get()) yield return m;
         }
 
         // Sets one monitor (key) or all (null) to a percentage of their range
@@ -67,6 +81,20 @@ namespace GameSwitcher.Native
                 if (key != null && k != key) return;
                 if (SetMonitorBrightness(h, (uint)Math.Round(min + (max - min) * percent / 100.0))) changed++;
             });
+            if (key == null || key.StartsWith("wmi:"))
+            {
+                try
+                {
+                    foreach (var m in Wmi("WmiMonitorBrightnessMethods"))
+                        using (m)
+                        {
+                            if (key != null && "wmi:" + m["InstanceName"] != key) continue;
+                            m.InvokeMethod("WmiSetBrightness", new object[] { (uint)0, (byte)percent });
+                            changed++;
+                        }
+                }
+                catch { }
+            }
             return changed;
         }
     }

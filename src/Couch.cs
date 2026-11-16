@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using GameSwitcher.Native;
 using static GameSwitcher.Strings;
 
@@ -11,6 +13,25 @@ namespace GameSwitcher
     {
         public string PreviousDisplay { get; set; }   // "extend" or "internal"; null: display not changed
         public DeviceChange Audio { get; set; }
+    }
+
+    // Decides from the set of connected controllers whether couch mode should be on. Controllers that are
+    // already connected when watching starts (e.g. a steering wheel or flight stick that is always plugged in)
+    // are ignored until they have been disconnected once; any other controller turns couch mode on.
+    class CouchTrigger
+    {
+        HashSet<string> ignored;   // null: no reading yet
+
+        // ignoreCurrent false: controllers connected at the first reading count (after a crash during couch mode)
+        public void Reset(bool ignoreCurrent = true) { ignored = null; this.ignoreCurrent = ignoreCurrent; }
+        bool ignoreCurrent = true;
+
+        public bool Update(ICollection<string> connected)
+        {
+            if (ignored == null) ignored = ignoreCurrent ? new HashSet<string>(connected) : new HashSet<string>();
+            ignored.IntersectWith(connected);
+            return connected.Any(id => !ignored.Contains(id));
+        }
     }
 
     // Couch mode: when a controller connects, switch to the TV (second screen only, duplicate or extend)

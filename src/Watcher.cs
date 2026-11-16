@@ -352,11 +352,12 @@ namespace GameSwitcher
         readonly ManualResetEvent stopPolling = new ManualResetEvent(false);
         Thread poller;
         volatile List<Battery> batteries = new List<Battery>();
-        volatile bool controllerPresent, controllerKnown;
+        volatile HashSet<string> controllers;   // connected controllers (null: not polled)
         readonly HashSet<string> batteryWarned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         CouchState couch;
+        readonly CouchTrigger couchTrigger = new CouchTrigger();
         DateTime controllerLost = DateTime.MaxValue;
-        bool? lastControllerPresent;
+        bool couchWanted;
         const int CouchGraceSeconds = 15;
 
         void StartDevicePolling()
@@ -370,8 +371,7 @@ namespace GameSwitcher
                     try
                     {
                         Config c = config;
-                        if (c.Couch.Enabled) { controllerPresent = Batteries.ControllerConnected(); controllerKnown = true; }
-                        else controllerKnown = false;
+                        controllers = c.Couch.Enabled ? Batteries.ConnectedControllers() : null;
                         if (c.Battery && (DateTime.UtcNow - lastBattery).TotalSeconds >= 60)
                         {
                             lastBattery = DateTime.UtcNow;
@@ -423,7 +423,12 @@ namespace GameSwitcher
         {
             CouchState pending = Couch.LoadPending();
             if (pending == null) return;
-            if (config.Couch.Enabled && Batteries.ControllerConnected()) { couch = pending; lastControllerPresent = true; }
+            if (config.Couch.Enabled && Batteries.ConnectedControllers().Count > 0)
+            {
+                couch = pending;
+                couchWanted = true;
+                couchTrigger.Reset(ignoreCurrent: false);   // the controllers in use keep couch mode on
+            }
             else Couch.End(config.Couch, pending);
         }
 
@@ -432,17 +437,17 @@ namespace GameSwitcher
             if (!config.Couch.Enabled)
             {
                 if (couch != null) { Couch.End(config.Couch, couch); couch = null; }
-                lastControllerPresent = null;
+                couchTrigger.Reset();
+                couchWanted = false;
                 return;
             }
-            if (!controllerKnown) return;
-            bool present = controllerPresent;
-            // the first reading only sets the baseline: a controller that is already on at logon switches nothing
-            if (lastControllerPresent == null) { lastControllerPresent = present; return; }
-            if (present)
+            var connected = controllers;
+            if (connected == null) return;
+            bool wanted = couchTrigger.Update(connected);
+            if (wanted)
             {
                 controllerLost = DateTime.MaxValue;
-                if (lastControllerPresent == false && couch == null && !paused)
+                if (!couchWanted && couch == null && !paused)
                 {
                     couch = Couch.Start(config.Couch);
                     if (config.Notifications) Notify(T("notify.couchOn"));
@@ -459,7 +464,7 @@ namespace GameSwitcher
                     if (config.Notifications) Notify(T("notify.couchOff"));
                 }
             }
-            lastControllerPresent = present;
+            couchWanted = wanted;
         }
 
         // Battery levels and recently played games in the tray menu, rebuilt each time it opens

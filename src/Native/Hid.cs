@@ -11,7 +11,9 @@ namespace GameSwitcher.Native
     class HidInterface
     {
         public string Path, Product;
-        public int Vid, Pid, UsagePage, Usage, InputLength, OutputLength;
+        public int Vid, Pid, UsagePage, Usage, InputLength, OutputLength, FeatureLength;
+        // Standard HID battery value (Generic Device Controls: Battery Strength), if the device has one
+        public int BatteryReportType = -1, BatteryReportId;
     }
 
     // Enumerating HID devices and reading/writing reports with timeouts (no exclusive access needed)
@@ -94,6 +96,8 @@ namespace GameSwitcher.Native
                         {
                             info.UsagePage = caps.UsagePage; info.Usage = caps.Usage;
                             info.InputLength = caps.InputReportByteLength; info.OutputLength = caps.OutputReportByteLength;
+                            info.FeatureLength = caps.FeatureReportByteLength;
+                            FindBatteryValue(info, pre, caps);
                         }
                     }
                     finally { HidD_FreePreparsedData(pre); }
@@ -104,6 +108,100 @@ namespace GameSwitcher.Native
             }
         }
 
+
+        #region Standard HID battery value
+
+        const int HidP_Input = 0, HidP_Feature = 2, HIDP_STATUS_SUCCESS = 0x110000;
+        const ushort GenericDeviceControls = 0x06, BatteryStrength = 0x20;
+        [DllImport("hid.dll")] static extern int HidP_GetValueCaps(int type, byte[] caps, ref ushort length, IntPtr preparsed);
+        [DllImport("hid.dll")] static extern int HidP_GetUsageValue(int type, ushort usagePage, ushort link, ushort usage, out uint value, IntPtr preparsed, byte[] report, int length);
+        [DllImport("hid.dll")] static extern bool HidD_GetFeature(SafeFileHandle h, byte[] buffer, int length);
+        const int ValueCapsSize = 72;   // sizeof(HIDP_VALUE_CAPS)
+
+        // Looks for "Battery Strength" among the feature and input values (the standard way a HID device reports its battery)
+        static void FindBatteryValue(HidInterface info, IntPtr pre, HIDP_CAPS caps)
+        {
+            foreach (var (type, count) in new[] { (HidP_Feature, (int)caps.NumberFeatureValueCaps), (HidP_Input, (int)caps.NumberInputValueCaps) })
+            {
+                if (count == 0) continue;
+                var buffer = new byte[count * ValueCapsSize];
+                ushort n = (ushort)count;
+                if (HidP_GetValueCaps(type, buffer, ref n, pre) != HIDP_STATUS_SUCCESS) continue;
+                for (int i = 0; i < n; i++)
+                {
+                    int o = i * ValueCapsSize;
+                    ushort page = BitConverter.ToUInt16(buffer, o);
+                    bool isRange = buffer[o + 12] != 0;
+                    ushort usageMin = BitConverter.ToUInt16(buffer, o + 56), usageMax = isRange ? BitConverter.ToUInt16(buffer, o + 58) : usageMin;
+                    if (page != GenericDeviceControls || BatteryStrength < usageMin || BatteryStrength > usageMax) continue;
+                    info.BatteryReportType = type;
+                    info.BatteryReportId = buffer[o + 2];
+                    return;
+                }
+            }
+        }
+
+        // Reads the standard battery value as a percentage (-1: not available)
+        public static int ReadBatteryStrength(HidInterface d)
+        {
+            if (d.BatteryReportType < 0) return -1;
+            bool feature = d.BatteryReportType == HidP_Feature;
+            // feature reports can be read without access rights; input reports need a read handle
+            IntPtr pre;
+            using (SafeFileHandle h = CreateFile(d.Path, 0, SHARE_RW, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero))
+                if (h.IsInvalid || !HidD_GetPreparsedData(h, out pre)) return -1;
+            try
+            {
+                if (feature)
+                {
+                    if (d.FeatureLength <= 0) return -1;
+                    var report = new byte[d.FeatureLength];
+                    report[0] = (byte)d.BatteryReportId;
+                    using (SafeFileHandle h = CreateFile(d.Path, 0, SHARE_RW, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero))
+                        if (h.IsInvalid || !HidD_GetFeature(h, report, report.Length)) return -1;
+                    return Percent(pre, HidP_Feature, report);
+                }
+                // input reports: the device sends them on its own (several report IDs may alternate)
+                using (var reader = Handle.Open(d))
+                {
+                    if (reader == null) return -1;
+                    for (int tries = 0; tries < 6; tries++)
+                    {
+                        byte[] report = reader.Read(300);
+                        if (report == null) return -1;
+                        if (d.BatteryReportId != 0 && report[0] != d.BatteryReportId) continue;
+                        int p = Percent(pre, HidP_Input, report);
+                        if (p >= 0) return p;
+                    }
+                }
+                return -1;
+            }
+            finally { HidD_FreePreparsedData(pre); }
+        }
+
+        static int Percent(IntPtr pre, int type, byte[] report)
+        {
+            if (HidP_GetUsageValue(type, GenericDeviceControls, 0, BatteryStrength, out uint value, pre, report, report.Length) != HIDP_STATUS_SUCCESS) return -1;
+            // the value range comes from the report descriptor; most devices use 0..100 or 0..255
+            int min = 0, max = 100;
+            var caps = new byte[ValueCapsSize * 64];
+            ushort n = 64;
+            if (HidP_GetValueCaps(type, caps, ref n, pre) == HIDP_STATUS_SUCCESS)
+                for (int i = 0; i < n; i++)
+                {
+                    int o = i * ValueCapsSize;
+                    if (BitConverter.ToUInt16(caps, o) != GenericDeviceControls) continue;
+                    min = BitConverter.ToInt32(caps, o + 40); max = BitConverter.ToInt32(caps, o + 44);
+                    break;
+                }
+            if (max <= min) { min = 0; max = 100; }
+            return PercentOf((int)value, min, max);
+        }
+
+        public static int PercentOf(int value, int min, int max) =>
+            Math.Max(0, Math.Min(100, (int)Math.Round((value - min) * 100.0 / (max - min))));
+
+        #endregion
         // An open HID interface for reading and writing reports with timeouts
         public sealed class Handle : IDisposable
         {

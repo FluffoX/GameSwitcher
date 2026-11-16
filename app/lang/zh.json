@@ -179,7 +179,7 @@
   "setup.title": "欢迎使用 GameSwitcher",
   "setup.text": "GameSwitcher 在后台运行，一旦启动游戏就会切换你的设置。\n\n是否让 GameSwitcher 随 Windows 自动启动？同时会在开始菜单中添加一个条目。之后可以在设置中更改。\n\n是 = 随 Windows 启动（推荐）\n否 = 仅运行到下次重启",
   "opt.trayHdr": "托盘图标切换 HDR：单击即可开启或关闭 HDR，图标显示当前状态（彩色带绿点 = 开，灰色 = 关）",
-  "act.brightness": "将显示器亮度 (DDC/CI) 设为",
+  "act.brightness": "将显示器亮度设为",
   "act.brightnessRevert": "游戏结束后恢复之前的亮度",
   "sec.graphics": "图形（按游戏，由 Windows 保存）",
   "act.gpu": "使用高性能显卡（适用于有两个图形芯片的电脑，例如笔记本）",
@@ -195,7 +195,7 @@
   "battery.low": "低",
   "battery.medium": "中",
   "battery.full": "满",
-  "battery.hint": "Xbox 和 PlayStation 手柄、罗技无线设备，以及向 Windows 报告电量的蓝牙设备。",
+  "battery.hint": "任意品牌的手柄（Xbox 兼容、PlayStation、Nintendo）、罗技无线设备，以及通过 USB、无线接收器或蓝牙向 Windows 报告电量的任何设备。",
   "settings.general": "常规",
   "settings.comfort": "附加功能",
   "settings.battery": "电池",
@@ -234,5 +234,6 @@
   "stats.hours": "小时",
   "stats.other": "其他",
   "stats.total": "总计：{0}",
-  "stats.noData": "从 2.5 版开始记录每天的游戏时长。"
+  "stats.noData": "从 2.5 版开始记录每天的游戏时长。",
+  "monitor.internal": "内置显示屏"
 }

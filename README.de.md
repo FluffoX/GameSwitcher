@@ -16,7 +16,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 |---|---|---|---|
 | HDR an | Audioausgabe (z. B. Headset) | Energiesparplan | Programme beenden (z. B. Wallpaper Engine) |
 | SDR-Helligkeit im HDR | Mikrofon | Bildschirm-Standby verhindern | Programme starten (z. B. Discord) |
-| Monitor-Helligkeit (DDC/CI) ² | Lautstärke | | Eigene Befehle vor und nach dem Spiel |
+| Monitor-Helligkeit ² | Lautstärke | | Eigene Befehle vor und nach dem Spiel |
 | Auflösung / Bildwiederholrate | | | |
 | Weitere Monitore ausschalten | | | |
 | Nachtlicht aus ¹ | | | |
@@ -36,8 +36,8 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - **Benachrichtigungen**, wenn Einstellungen übernommen und zurückgesetzt werden.
 - **Spielzeit** und „Zuletzt gespielt“ pro Spiel; Spiele direkt aus der Liste oder über **Zuletzt gespielt** im Tray-Menü starten. Nach dem Spiel zeigt eine Benachrichtigung, wie lange du gespielt hast.
 - **Statistik:** Spielzeit pro Tag oder Monat für die letzten 7 Tage, 30 Tage oder 12 Monate, aufgeteilt nach Spielen.
-- **Akkustände** von Xbox- und PlayStation-Controllern, Logitech-Funkmäusen, -Tastaturen und -Headsets sowie Bluetooth-Geräten, die ihren Akkustand an Windows melden – im Fenster und im Tray-Menü, mit Warnung bei schwachem Akku und beim Spielstart mit schwachem Akku.
-- **Couch-Modus:** Sobald ein Controller verbunden wird, auf den Fernseher umschalten (nur zweiter Bildschirm, duplizieren oder erweitern), seine Audioausgabe wählen und einen Befehl ausführen; zurückschalten, wenn der Controller ausgeschaltet wird.
+- **Akkustände** von Controllern aller Marken (Xbox-kompatibel über XInput, PlayStation, Nintendo Switch), Logitech-Funkmäusen, -Tastaturen und -Headsets sowie allen Geräten, die ihren Akkustand auf dem Standardweg an Windows melden (HID-Akkuwert über USB oder Funkempfänger, oder Bluetooth) – im Fenster und im Tray-Menü, mit Warnung bei schwachem Akku und beim Spielstart mit schwachem Akku.
+- **Couch-Modus:** Sobald ein Controller beliebiger Marke verbunden wird, auf den Fernseher umschalten (nur zweiter Bildschirm, duplizieren oder erweitern), seine Audioausgabe wählen und einen Befehl ausführen; zurückschalten, wenn der Controller ausgeschaltet wird.
 - **Alle Extras sind optional:** Jede dieser Funktionen lässt sich in den Einstellungen abschalten. Alles, was dein System verändert (Grafik, Helligkeit, Couch-Modus), ist aus, bis du es einschaltest.
 - **Absturzsicher:** Jede Änderung wird sofort vermerkt und nach einem Absturz oder Stromausfall beim nächsten Start zurückgesetzt.
 - **Deine Änderungen haben Vorrang:** Was du während des Spiels selbst umstellst, wird nicht zurückgesetzt.
@@ -46,7 +46,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - **Update-Prüfung** gegen die GitHub-Releases (abschaltbar).
 
 ¹ Nur auf PCs, auf denen Windows den Nachtlicht-Zustand im bekannten Format speichert; sonst wird die Option als nicht unterstützt angezeigt.
-² Nur für Monitore, die sich über DDC/CI steuern lassen (die meisten externen Monitore; oft im Monitormenü einschaltbar). Laptop-Bildschirme werden nicht unterstützt.
+² Externe Monitore über DDC/CI (die meisten Monitore; oft im Monitormenü einschaltbar) und eingebaute Laptop-Bildschirme.
 
 <details><summary>Dark Mode</summary>
 
@@ -87,7 +87,7 @@ Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`set
 | `src/Gui/GameLibrary.cs`, `GuiSettings.cs` | Spielesuche (Steam, Epic, GOG, Ubisoft, Xbox, EA, Windows) und Speichern der Einstellungen |
 | `src/Watcher.cs` | Hintergrunddienst: Tray-Symbol, Erkennung, Tastenkürzel, Pause, Spielzeit, Akkus, Couch-Modus |
 | `src/GameActions.cs`, `Couch.cs`, `GraphicsSync.cs` | Aktionen bei Spielstart/-ende mit absturzsicherem Zustand, Couch-Modus, Grafik-Einstellungen pro Spiel |
-| `src/Native/*.cs` | HDR, SDR, Monitore (DisplayConfig), Monitor-Helligkeit (DDC/CI), Audio (Core Audio), Anzeigemodus, Energiesparpläne, Nachtlicht, Tastenkürzel, HID-Geräte und Akkus, Grafik-Einstellungen |
+| `src/Native/*.cs` | HDR, SDR, Monitore (DisplayConfig), Monitor-Helligkeit (DDC/CI, WMI), Audio (Core Audio), Anzeigemodus, Energiesparpläne, Nachtlicht, Tastenkürzel, HID-Geräte und Akkus, Grafik-Einstellungen |
 | `src/Config.cs`, `Strings.cs`, `Paths.cs`, `Pause.cs`, `Autostart.cs` | Einstellungen und Profile, Übersetzungen, Ordner, Pause, Autostart und Startmenü-Eintrag |
 | `app/lang/*.json`, `app/icon.ico` | Übersetzungen (eine Datei pro Sprache) und Symbol |
 | `Build.ps1` | Baut `GameSwitcher.exe` |
@@ -115,8 +115,8 @@ Zum Bauen wird das [.NET SDK](https://dotnet.microsoft.com/download) benötigt (
 - „Weitere Monitore ausschalten“ behält den Monitor mit dem Hauptdesktop und stellt danach die zuletzt von Windows gemerkte erweiterte Anordnung wieder her.
 - Wieder gestartete Programme starten ohne ihre ursprünglichen Startparameter.
 - Grafikkarte und Auto HDR nutzen die Programm-Einträge von Windows (`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`). Windows wendet sie beim Start des Spiels an, eine Änderung wirkt also ab dem nächsten Start. GameSwitcher schreibt sie für das Hauptprogramm jedes ausgewählten Spiels und für die Programme, die es laufen sieht; beim Abwählen wird der vorherige Eintrag wiederhergestellt. Auto HDR „An“ wirkt nur, wenn Auto HDR in Windows eingeschaltet ist.
-- Akkustände werden jede Minute gelesen, Logitech-Geräte nur alle fünf Minuten, weil eine Abfrage ein schlafendes Gerät aufweckt. PlayStation-Controller über Bluetooth melden ihren Akku erst, nachdem ein Spiel oder Steam sie in ihren vollen Modus geschaltet hat.
-- Der Couch-Modus nutzt `DisplaySwitch.exe` (wie Win+P) und schaltet etwa 15 Sekunden nach dem letzten Controller zurück. Ein Controller, der beim Start des Dienstes schon verbunden ist, schaltet nichts um.
+- Akkustände werden jede Minute gelesen, Logitech-Geräte nur alle fünf Minuten, weil eine Abfrage ein schlafendes Gerät aufweckt. PlayStation- und Nintendo-Controller über Bluetooth melden ihren Akku erst, nachdem ein Spiel oder Steam sie in ihren vollen Modus geschaltet hat. XInput meldet nur leer / niedrig / mittel / voll und nicht das Modell, daher heißen diese Controller Controller 1–4. Geräte mit eigenem Protokoll (z. B. Empfänger von Razer, Corsair, SteelSeries) erscheinen nur, wenn sie ihren Akkustand auch an Windows melden.
+- Der Couch-Modus nutzt `DisplaySwitch.exe` (wie Win+P) und schaltet etwa 15 Sekunden nach dem letzten Controller zurück. Jeder Controller zählt – XInput (Xbox und kompatible) und jedes HID-Gamepad oder jeder Joystick. Controller, die beim Start des Dienstes schon verbunden sind, etwa ein dauerhaft angeschlossenes Lenkrad oder ein Flugsteuer, werden ignoriert, bis sie einmal getrennt wurden – sie blockieren den Couch-Modus also nicht und lösen ihn auch nicht aus.
 - `GameSwitcher.exe` ist nicht code-signiert; der vollständige Quellcode liegt in `src/`.
 - Die Update-Prüfung kontaktiert nur `api.github.com`.
 

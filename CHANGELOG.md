@@ -4,10 +4,10 @@
 
 Everything new is optional and can be turned off in the settings; whatever changes the system is off until you turn it on.
 
-- **Battery levels** of Xbox and PlayStation controllers, Logitech wireless devices (mice, keyboards, headsets) and Bluetooth devices that report their battery to Windows – shown in the window and the tray menu, with a warning when a battery drops below a threshold (default 20 %) and when a game starts with a weak battery.
+- **Battery levels** of controllers of any brand (XInput, PlayStation, Nintendo Switch), Logitech wireless devices (mice, keyboards, headsets; all four HID++ battery features) and any device that reports its battery the standard way (HID battery value or Bluetooth) – shown in the window and the tray menu, with a warning when a battery drops below a threshold (default 20 %) and when a game starts with a weak battery.
 - **Graphics per game:** use the high-performance graphics card and turn Auto HDR on or off per game. GameSwitcher writes the per-program entries Windows uses (Settings → Display → Graphics) and restores the previous ones when the option is turned off.
-- **Monitor brightness** via DDC/CI as a new action, restored after the game.
-- **Couch mode:** when a controller connects, switch to the TV (second screen only, duplicate or extend), its audio output and run a command; switch back when the controller is off.
+- **Monitor brightness** as a new action (external monitors via DDC/CI, built-in laptop screens via WMI), restored after the game.
+- **Couch mode:** when a controller of any brand connects, switch to the TV (second screen only, duplicate or extend), its audio output and run a command; switch back when the controller is off. Controllers that are always plugged in (wheels, flight sticks) are ignored.
 - **Recently played** games in the tray menu, launchable with one click.
 - **Session summary:** after a game, a notification shows how long you played.
 - **Statistics:** play time per day or month (last 7 days, 30 days, 12 months), per game. Play time per day is recorded from this version on.
