@@ -12,12 +12,21 @@ namespace GameSwitcher.Gui
         public List<string> CustomFolders = new List<string>(), CustomExes = new List<string>();
         public string Language = "", Hotkey = "Ctrl+Alt+G", Theme = "system";
         public bool AutoDetect, Notifications = true, CheckUpdates = true, SetupDone, TrayHdrToggle;
+        public bool SessionSummary = true, RecentInTray = true, Battery = true, BatteryWarn = true, BatteryGameStart = true;
+        public int BatteryThreshold = 20;
+        public CouchSettings Couch = new CouchSettings();
+        // Per-program graphics entries GameSwitcher wrote: program path -> { Original, Written }
+        public Dictionary<string, object> GraphicsManaged = new Dictionary<string, object>();
         public bool Demo;
 
         public static GuiSettings Load()
         {
             var s = new GuiSettings();
             Config c = Config.Load();
+            s.SessionSummary = c.SessionSummary; s.RecentInTray = c.RecentInTray;
+            s.Battery = c.Battery; s.BatteryWarn = c.BatteryWarn; s.BatteryGameStart = c.BatteryGameStart; s.BatteryThreshold = c.BatteryThreshold;
+            s.Couch = c.Couch;
+            s.GraphicsManaged = c.Raw.Dict("GraphicsManaged") ?? new Dictionary<string, object>();
             var raw = c.Raw;
             foreach (var g in c.Selected) s.Selected[g.Key] = g;
             if (raw.Dict("Profiles") is Dictionary<string, object> profiles)
@@ -55,8 +64,24 @@ namespace GameSwitcher.Gui
                 ["CheckUpdates"] = CheckUpdates,
                 ["SetupDone"] = SetupDone,
                 ["TrayHdrToggle"] = TrayHdrToggle,
-                // all found games, so the service's automatic detection uses the same keys as the list
-                ["Library"] = library.Where(g => g.Source != "Missing").Select(g => Ref(new GameRef { Key = g.Key, Name = g.Name, Exes = g.Exes })).ToArray(),
+                ["SessionSummary"] = SessionSummary,
+                ["RecentInTray"] = RecentInTray,
+                ["Battery"] = Battery,
+                ["BatteryWarn"] = BatteryWarn,
+                ["BatteryGameStart"] = BatteryGameStart,
+                ["BatteryThreshold"] = BatteryThreshold,
+                ["Couch"] = new Dictionary<string, object>
+                {
+                    ["Enabled"] = Couch.Enabled, ["Revert"] = Couch.Revert, ["Display"] = Couch.Display,
+                    ["AudioId"] = Couch.AudioId, ["AudioName"] = Couch.AudioName, ["Command"] = Couch.Command
+                },
+                ["GraphicsManaged"] = GraphicsManaged,
+                // all found games, so the service's automatic detection uses the same keys as the list;
+                // with launch information for "Recently played" in the tray menu
+                ["Library"] = library.Where(g => g.Source != "Missing").Select(g => new Dictionary<string, object>
+                {
+                    ["Key"] = g.Key, ["Name"] = g.Name, ["Exes"] = g.Exes, ["Launch"] = g.Launch ?? g.MainExe ?? ""
+                }).ToArray(),
             };
             Json.WriteFile(Paths.Data("settings.json"), data);
         }

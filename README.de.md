@@ -16,9 +16,12 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 |---|---|---|---|
 | HDR an | Audioausgabe (z. B. Headset) | Energiesparplan | Programme beenden (z. B. Wallpaper Engine) |
 | SDR-Helligkeit im HDR | Mikrofon | Bildschirm-Standby verhindern | Programme starten (z. B. Discord) |
-| Auflösung / Bildwiederholrate | Lautstärke | | Eigene Befehle vor und nach dem Spiel |
+| Monitor-Helligkeit (DDC/CI) ² | Lautstärke | | Eigene Befehle vor und nach dem Spiel |
+| Auflösung / Bildwiederholrate | | | |
 | Weitere Monitore ausschalten | | | |
 | Nachtlicht aus ¹ | | | |
+
+**Grafik pro Spiel** (von Windows gespeichert, wie unter Einstellungen → Anzeige → Grafik): leistungsstarke Grafikkarte verwenden (bei PCs mit zwei Grafikchips) und Auto HDR für ein Spiel ein- oder ausschalten.
 
 **Profile pro Spiel** – ein Standardprofil für alle Spiele; jedes Spiel kann eigene Einstellungen bekommen.
 
@@ -31,7 +34,11 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 **Im Alltag**
 - **Symbol im Infobereich** mit Status, Pause (1 Std., 2 Std., bis zum Neustart), HDR-Umschalter und manuellem Spielmodus. Optional ist das Symbol selbst ein HDR-Schalter: Ein Klick schaltet HDR um, und das Symbol zeigt den Zustand (farbig mit grünem Punkt = an, grau = aus).
 - **Benachrichtigungen**, wenn Einstellungen übernommen und zurückgesetzt werden.
-- **Spielzeit** und „Zuletzt gespielt“ pro Spiel; Spiele direkt aus der Liste starten.
+- **Spielzeit** und „Zuletzt gespielt“ pro Spiel; Spiele direkt aus der Liste oder über **Zuletzt gespielt** im Tray-Menü starten. Nach dem Spiel zeigt eine Benachrichtigung, wie lange du gespielt hast.
+- **Statistik:** Spielzeit pro Tag oder Monat für die letzten 7 Tage, 30 Tage oder 12 Monate, aufgeteilt nach Spielen.
+- **Akkustände** von Xbox- und PlayStation-Controllern, Logitech-Funkmäusen, -Tastaturen und -Headsets sowie Bluetooth-Geräten, die ihren Akkustand an Windows melden – im Fenster und im Tray-Menü, mit Warnung bei schwachem Akku und beim Spielstart mit schwachem Akku.
+- **Couch-Modus:** Sobald ein Controller verbunden wird, auf den Fernseher umschalten (nur zweiter Bildschirm, duplizieren oder erweitern), seine Audioausgabe wählen und einen Befehl ausführen; zurückschalten, wenn der Controller ausgeschaltet wird.
+- **Alle Extras sind optional:** Jede dieser Funktionen lässt sich in den Einstellungen abschalten. Alles, was dein System verändert (Grafik, Helligkeit, Couch-Modus), ist aus, bis du es einschaltest.
 - **Absturzsicher:** Jede Änderung wird sofort vermerkt und nach einem Absturz oder Stromausfall beim nächsten Start zurückgesetzt.
 - **Deine Änderungen haben Vorrang:** Was du während des Spiels selbst umstellst, wird nicht zurückgesetzt.
 - **12 Sprachen:** English, Deutsch, Español, Français, Italiano, Português, Polski, Türkçe, Русский, 中文（简体）, 日本語, 한국어.
@@ -39,10 +46,16 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - **Update-Prüfung** gegen die GitHub-Releases (abschaltbar).
 
 ¹ Nur auf PCs, auf denen Windows den Nachtlicht-Zustand im bekannten Format speichert; sonst wird die Option als nicht unterstützt angezeigt.
+² Nur für Monitore, die sich über DDC/CI steuern lassen (die meisten externen Monitore; oft im Monitormenü einschaltbar). Laptop-Bildschirme werden nicht unterstützt.
 
 <details><summary>Dark Mode</summary>
 
 ![GameSwitcher im Dark Mode](assets/screenshot-dark.png)
+</details>
+
+<details><summary>Statistik</summary>
+
+![Spielzeit-Statistik](assets/screenshot-stats.png)
 </details>
 
 ## Installation
@@ -63,18 +76,18 @@ Zu jedem Release gibt es die SHA-256-Prüfsummen der Dateien in `SHA256SUMS.txt`
 
 ## Funktionsweise
 
-Der Hintergrunddienst (`GameSwitcher.exe --watcher`, bei der Anmeldung über die Aufgabenplanung gestartet) prüft jede Sekunde, ob ein ausgewähltes Spiel läuft, wendet die Aktionen seines Profils an und setzt sie etwa 10 Sekunden nach Spielende zurück (damit Launcher-Neustarts kein Hin und Her auslösen). GameSwitcher ist in C# (WinForms) geschrieben und nutzt das .NET Framework 4.8, das in Windows 10/11 enthalten ist – es braucht also keine zusätzliche Laufzeitumgebung: Das ganze Programm ist eine einzige kleine `GameSwitcher.exe` (etwa 120 KB) plus Übersetzungen und Symbol in `app\`. Der Hintergrunddienst braucht etwa 35 MB Arbeitsspeicher.
+Der Hintergrunddienst (`GameSwitcher.exe --watcher`, bei der Anmeldung über die Aufgabenplanung gestartet) prüft jede Sekunde, ob ein ausgewähltes Spiel läuft, wendet die Aktionen seines Profils an und setzt sie etwa 10 Sekunden nach Spielende zurück (damit Launcher-Neustarts kein Hin und Her auslösen). GameSwitcher ist in C# (WinForms) geschrieben und nutzt das .NET Framework 4.8, das in Windows 10/11 enthalten ist – es braucht also keine zusätzliche Laufzeitumgebung: Das ganze Programm ist eine einzige kleine `GameSwitcher.exe` (etwa 250 KB) plus Übersetzungen und Symbol in `app\`. Der Hintergrunddienst braucht etwa 35 MB Arbeitsspeicher.
 
-Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `state.json` nur während eines Spiels).
+Einstellungen, Spielzeit und Protokolle liegen in `%AppData%\GameSwitcher` (`settings.json`, `playtime.json`, `watcher.log`; `battery.json` mit den letzten Akkuständen, `graphics.json` mit den von GameSwitcher geschriebenen Grafik-Einträgen; `state.json` und `couch.json` nur während eines Spiels bzw. des Couch-Modus).
 
 | Pfad | Aufgabe |
 |---|---|
 | `src/Gui/MainForm.cs` | Hauptfenster: Spieleliste, Profile, Aktionen, Status |
-| `src/Gui/SettingsDialog.cs`, `ProcessPicker.cs`, `UpdateChecker.cs`, `Theme.cs` | Einstellungsfenster, Programmauswahl, Update-Prüfung, helles/dunkles Design |
+| `src/Gui/SettingsDialog.cs`, `StatsDialog.cs`, `ProcessPicker.cs`, `UpdateChecker.cs`, `Theme.cs` | Einstellungsfenster, Statistik, Programmauswahl, Update-Prüfung, helles/dunkles Design |
 | `src/Gui/GameLibrary.cs`, `GuiSettings.cs` | Spielesuche (Steam, Epic, GOG, Ubisoft, Xbox, EA, Windows) und Speichern der Einstellungen |
-| `src/Watcher.cs` | Hintergrunddienst: Tray-Symbol, Erkennung, Tastenkürzel, Pause, Spielzeit |
-| `src/GameActions.cs` | Aktionen bei Spielstart/-ende, absturzsicherer Zustand |
-| `src/Native/*.cs` | HDR, SDR, Monitore (DisplayConfig), Audio (Core Audio), Anzeigemodus, Energiesparpläne, Nachtlicht, Tastenkürzel |
+| `src/Watcher.cs` | Hintergrunddienst: Tray-Symbol, Erkennung, Tastenkürzel, Pause, Spielzeit, Akkus, Couch-Modus |
+| `src/GameActions.cs`, `Couch.cs`, `GraphicsSync.cs` | Aktionen bei Spielstart/-ende mit absturzsicherem Zustand, Couch-Modus, Grafik-Einstellungen pro Spiel |
+| `src/Native/*.cs` | HDR, SDR, Monitore (DisplayConfig), Monitor-Helligkeit (DDC/CI), Audio (Core Audio), Anzeigemodus, Energiesparpläne, Nachtlicht, Tastenkürzel, HID-Geräte und Akkus, Grafik-Einstellungen |
 | `src/Config.cs`, `Strings.cs`, `Paths.cs`, `Pause.cs`, `Autostart.cs` | Einstellungen und Profile, Übersetzungen, Ordner, Pause, Autostart und Startmenü-Eintrag |
 | `app/lang/*.json`, `app/icon.ico` | Übersetzungen (eine Datei pro Sprache) und Symbol |
 | `Build.ps1` | Baut `GameSwitcher.exe` |
@@ -101,6 +114,9 @@ Zum Bauen wird das [.NET SDK](https://dotnet.microsoft.com/download) benötigt (
 - Einige Funktionen nutzen undokumentierte, aber seit Langem stabile Windows-Schnittstellen: Audiogerät umschalten (`IPolicyConfig`), SDR-Helligkeit und Nachtlicht. Ändert Windows sie, funktioniert die betroffene Aktion nicht mehr; alles andere läuft weiter.
 - „Weitere Monitore ausschalten“ behält den Monitor mit dem Hauptdesktop und stellt danach die zuletzt von Windows gemerkte erweiterte Anordnung wieder her.
 - Wieder gestartete Programme starten ohne ihre ursprünglichen Startparameter.
+- Grafikkarte und Auto HDR nutzen die Programm-Einträge von Windows (`HKCU\Software\Microsoft\DirectX\UserGpuPreferences`). Windows wendet sie beim Start des Spiels an, eine Änderung wirkt also ab dem nächsten Start. GameSwitcher schreibt sie für das Hauptprogramm jedes ausgewählten Spiels und für die Programme, die es laufen sieht; beim Abwählen wird der vorherige Eintrag wiederhergestellt. Auto HDR „An“ wirkt nur, wenn Auto HDR in Windows eingeschaltet ist.
+- Akkustände werden jede Minute gelesen, Logitech-Geräte nur alle fünf Minuten, weil eine Abfrage ein schlafendes Gerät aufweckt. PlayStation-Controller über Bluetooth melden ihren Akku erst, nachdem ein Spiel oder Steam sie in ihren vollen Modus geschaltet hat.
+- Der Couch-Modus nutzt `DisplaySwitch.exe` (wie Win+P) und schaltet etwa 15 Sekunden nach dem letzten Controller zurück. Ein Controller, der beim Start des Dienstes schon verbunden ist, schaltet nichts um.
 - `GameSwitcher.exe` ist nicht code-signiert; der vollständige Quellcode liegt in `src/`.
 - Die Update-Prüfung kontaktiert nur `api.github.com`.
 

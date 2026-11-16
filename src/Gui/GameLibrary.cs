@@ -12,6 +12,7 @@ namespace GameSwitcher.Gui
     {
         public string Name, Source, Path, Key, Origin, MainExe, Launch;
         public string[] Exes = new string[0];
+        public string[] ExePaths = new string[0];   // full paths (for per-program graphics settings)
     }
 
     // Finds installed games: Steam, Epic, GOG, Ubisoft, Xbox, EA, games Windows knows, custom folders and programs
@@ -52,7 +53,7 @@ namespace GameSwitcher.Gui
             {
                 Name = name, Source = source, Path = path, Key = path.TrimEnd('\\').ToLowerInvariant(), Origin = origin,
                 Exes = files.Select(System.IO.Path.GetFileName).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
-                MainExe = main, Launch = launch
+                MainExe = main, Launch = launch, ExePaths = files.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
             };
         }
 
@@ -64,7 +65,7 @@ namespace GameSwitcher.Gui
             return new Game
             {
                 Name = name, Source = source, Path = exe, Key = key ?? exe.ToLowerInvariant(), Origin = exe,
-                Exes = new[] { System.IO.Path.GetFileName(exe) }, MainExe = exe, Launch = exe
+                Exes = new[] { System.IO.Path.GetFileName(exe) }, MainExe = exe, Launch = exe, ExePaths = new[] { exe }
             };
         }
 

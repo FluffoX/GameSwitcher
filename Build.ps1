@@ -17,7 +17,7 @@ if (-not (Test-Path $csc)) { throw "C# compiler not found in $($sdk.Path)." }
 
 # .NET Framework 4.8 assemblies of Windows
 $fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
-$refs = 'mscorlib', 'System', 'System.Core', 'System.Drawing', 'System.Windows.Forms', 'System.Web.Extensions', 'System.Management', 'Microsoft.CSharp' |
+$refs = 'mscorlib', 'System', 'System.Core', 'System.Drawing', 'System.Windows.Forms', 'System.Windows.Forms.DataVisualization', 'System.Web.Extensions', 'System.Management', 'Microsoft.CSharp' |
     ForEach-Object { "/reference:$(Join-Path $fw "$_.dll")" }
 
 $version = ([regex]::Match((Get-Content (Join-Path $root 'src\AppInfo.cs') -Raw), 'Version = "([\d.]+)"')).Groups[1].Value

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -5,8 +6,15 @@ namespace GameSwitcher
 {
     class GameRef
     {
-        public string Key, Name;
+        public string Key, Name, Launch;   // Launch: store URI or program (library entries only)
         public string[] Exes;
+    }
+
+    // Couch mode: switches display and audio while a controller is connected
+    class CouchSettings
+    {
+        public bool Enabled, Revert = true;
+        public string Display = "external", AudioId = "", AudioName = "", Command = "";
     }
 
     // settings.json as written by the GUI
@@ -17,6 +25,10 @@ namespace GameSwitcher
         public List<GameRef> Library = new List<GameRef>();
         public bool AutoDetect, Notifications = true, TrayHdrToggle;
         public string Hotkey = "";
+        // Optional extras: display-only ones default to on, everything that changes the system to off
+        public bool SessionSummary = true, RecentInTray = true, Battery = true, BatteryWarn = true, BatteryGameStart = true;
+        public int BatteryThreshold = 20;
+        public CouchSettings Couch = new CouchSettings();
 
         public static Config Load()
         {
@@ -30,12 +42,25 @@ namespace GameSwitcher
             c.Notifications = raw.Bool("Notifications", true);
             c.TrayHdrToggle = raw.Bool("TrayHdrToggle");
             c.Hotkey = raw.Str("Hotkey");
+            c.SessionSummary = raw.Bool("SessionSummary", true);
+            c.RecentInTray = raw.Bool("RecentInTray", true);
+            c.Battery = raw.Bool("Battery", true);
+            c.BatteryWarn = raw.Bool("BatteryWarn", true);
+            c.BatteryGameStart = raw.Bool("BatteryGameStart", true);
+            c.BatteryThreshold = Math.Max(5, Math.Min(90, raw.Int("BatteryThreshold", 20)));
+            if (raw.Dict("Couch") is Dictionary<string, object> couch)
+                c.Couch = new CouchSettings
+                {
+                    Enabled = couch.Bool("Enabled"), Revert = couch.Bool("Revert", true),
+                    Display = couch.Str("Display").Length > 0 ? couch.Str("Display") : "external",
+                    AudioId = couch.Str("AudioId"), AudioName = couch.Str("AudioName"), Command = couch.Str("Command")
+                };
             return c;
         }
 
         static List<GameRef> Games(List<object> items) =>
             items.OfType<Dictionary<string, object>>()
-                 .Select(g => new GameRef { Key = g.Str("Key"), Name = g.Str("Name"), Exes = g.Strings("Exes") })
+                 .Select(g => new GameRef { Key = g.Str("Key"), Name = g.Str("Name"), Exes = g.Strings("Exes"), Launch = g.Str("Launch") })
                  .Where(g => g.Key.Length > 0).ToList();
 
         // Actions for a game: its own profile if it has one, otherwise the default profile
@@ -89,6 +114,7 @@ namespace GameSwitcher
                 ["Hdr"] = D("Enabled", true, "Revert", true),
                 ["Sdr"] = D("Enabled", false, "Level", 30, "Revert", true),
                 ["Display"] = D("Enabled", false, "Width", 0, "Height", 0, "Hz", 0, "Revert", true),
+                ["Brightness"] = D("Enabled", false, "Level", 80, "Revert", true),
                 ["Monitors"] = D("Enabled", false, "Revert", true),
                 ["NightLight"] = D("Enabled", false, "Revert", true),
                 ["Audio"] = D("Enabled", false, "DeviceId", "", "DeviceName", "", "Revert", true),
@@ -99,6 +125,9 @@ namespace GameSwitcher
                 ["CloseApps"] = D("Enabled", false, "Apps", new object[0], "Revert", true),
                 ["StartApps"] = D("Enabled", false, "Apps", new object[0], "Revert", true),
                 ["Script"] = D("Enabled", false, "Start", "", "End", ""),
+                // Windows stores these per program; the window writes them (see Native.GraphicsPreferences)
+                ["Gpu"] = D("Enabled", false),
+                ["AutoHdr"] = D("Mode", "default"),
             };
         }
     }

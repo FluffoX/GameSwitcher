@@ -45,7 +45,7 @@ namespace GameSwitcher.Gui
         List<Game> games = new List<Game>();
         readonly float scale;
         readonly int innerWidth;
-        bool loading, serviceRunning, nightLightSupported;
+        bool loading, serviceRunning, nightLightSupported, brightnessSupported, scanned;
         string editKey = "";
         int tick;
         ListBox addTarget;
@@ -57,18 +57,18 @@ namespace GameSwitcher.Gui
         readonly ListView list = new ListView();
         readonly ImageList images = new ImageList();
         readonly ListViewSorter sorter = new ListViewSorter();
-        readonly Label lblHdr, lblRunning, lblAudio, lblPause, lblSearch, lblActions, lblProfile, lblScriptStart, lblScriptEnd;
-        readonly Label secDisplay, secAudio, secSystem, secPrograms;
-        readonly Button btnToggleHdr, btnPause, btnRescan, btnAddExe, btnAddFolder, btnRemove, btnLog, btnSettings;
+        readonly Label lblHdr, lblRunning, lblAudio, lblBattery, lblPause, lblSearch, lblActions, lblProfile, lblScriptStart, lblScriptEnd;
+        readonly Label secDisplay, secAudio, secSystem, secPrograms, secGraphics, lblAutoHdr, lblGraphicsHint;
+        readonly Button btnToggleHdr, btnPause, btnRescan, btnAddExe, btnAddFolder, btnRemove, btnLog, btnStats, btnSettings;
         readonly Button btnCloseAdd, btnCloseRemove, btnStartAdd, btnStartRemove, btnScriptStart, btnScriptEnd;
         readonly LinkLabel lnkUpdate = new LinkLabel();
         readonly TextBox txtSearch = new TextBox(), txtScriptStart = new TextBox(), txtScriptEnd = new TextBox();
-        readonly ComboBox cmbSource, cmbProfile, cmbDisplay, cmbAudio, cmbMic, cmbPower;
+        readonly ComboBox cmbSource, cmbProfile, cmbDisplay, cmbAudio, cmbMic, cmbPower, cmbAutoHdr;
         readonly CheckBox chkOnlySelected, chkOwnProfile;
-        readonly CheckBox chkHdr, chkHdrRevert, chkSdr, chkSdrRevert, chkDisplay, chkDisplayRevert, chkMonitors, chkMonitorsRevert,
+        readonly CheckBox chkHdr, chkHdrRevert, chkSdr, chkSdrRevert, chkBright, chkBrightRevert, chkDisplay, chkDisplayRevert, chkMonitors, chkMonitorsRevert,
                           chkNight, chkNightRevert, chkAudio, chkAudioRevert, chkMic, chkMicRevert, chkVolume, chkVolumeRevert,
-                          chkPower, chkPowerRevert, chkKeepAwake, chkClose, chkCloseRevert, chkStart, chkStartRevert, chkScript;
-        readonly NumericUpDown numSdr, numVolume;
+                          chkPower, chkPowerRevert, chkKeepAwake, chkClose, chkCloseRevert, chkStart, chkStartRevert, chkScript, chkGpu;
+        readonly NumericUpDown numSdr, numBright, numVolume;
         readonly ListBox lstClose, lstStart;
         readonly FlowLayoutPanel statusPanel, searchPanel, bottom, actionsPanel;
         readonly StatusStrip statusBar = new StatusStrip();
@@ -92,6 +92,7 @@ namespace GameSwitcher.Gui
             StartPosition = FormStartPosition.CenterScreen;
             innerWidth = Px(375);
             nightLightSupported = demo || NightLight.Get() != null;
+            brightnessSupported = demo || (SafeGet(MonitorBrightness.Get)?.Count ?? 0) > 0;
 
             // Game list
             list.Dock = DockStyle.Fill; list.View = View.Details; list.CheckBoxes = true; list.FullRowSelect = true;
@@ -107,10 +108,11 @@ namespace GameSwitcher.Gui
             btnToggleHdr = NewButton();
             lblRunning = NewLabel(new Padding(18, 8, 3, 3));
             lblAudio = NewLabel(new Padding(18, 8, 3, 3));
+            lblBattery = NewLabel(new Padding(18, 8, 3, 3)); lblBattery.Visible = false; lblBattery.Tag = "keepColor";
             btnPause = NewButton(); btnPause.Margin = new Padding(24, 3, 3, 3);
             lblPause = NewLabel(new Padding(6, 8, 3, 3));
             lnkUpdate.AutoSize = true; lnkUpdate.Margin = new Padding(18, 8, 3, 3); lnkUpdate.Visible = false;
-            statusPanel.Controls.AddRange(new Control[] { lblHdr, btnToggleHdr, lblRunning, lblAudio, btnPause, lblPause, lnkUpdate });
+            statusPanel.Controls.AddRange(new Control[] { lblHdr, btnToggleHdr, lblRunning, lblAudio, lblBattery, btnPause, lblPause, lnkUpdate });
 
             // Search and source filter
             searchPanel = NewFlow(DockStyle.Top, new Padding(6, 2, 6, 2));
@@ -126,8 +128,9 @@ namespace GameSwitcher.Gui
             btnAddExe = NewButton(); btnAddFolder = NewButton();
             btnRemove = NewButton(); btnRemove.Enabled = false;
             btnLog = NewButton(); btnLog.Margin = new Padding(24, 3, 3, 3);
+            btnStats = NewButton();
             btnSettings = NewButton();
-            bottom.Controls.AddRange(new Control[] { btnAddExe, btnAddFolder, btnRemove, btnLog, btnSettings });
+            bottom.Controls.AddRange(new Control[] { btnAddExe, btnAddFolder, btnRemove, btnLog, btnStats, btnSettings });
 
             statusBar.Items.Add(status);
 
@@ -147,6 +150,7 @@ namespace GameSwitcher.Gui
             secDisplay = NewSection();
             chkHdr = NewCheck(0, 2); chkHdrRevert = NewCheck(20);
             var sdrRow = NewCheckNumber(8, out chkSdr, out numSdr); chkSdrRevert = NewCheck(20);
+            var brightRow = NewCheckNumber(8, out chkBright, out numBright); chkBrightRevert = NewCheck(20);
             chkDisplay = NewCheck(0, 10); cmbDisplay = NewActionCombo(); chkDisplayRevert = NewCheck(20);
             chkMonitors = NewCheck(0, 10); chkMonitorsRevert = NewCheck(20);
             chkNight = NewCheck(0, 10); chkNightRevert = NewCheck(20);
@@ -160,6 +164,14 @@ namespace GameSwitcher.Gui
             chkPower = NewCheck(0, 2); cmbPower = NewActionCombo(); chkPowerRevert = NewCheck(20);
             chkKeepAwake = NewCheck(0, 10);
 
+            secGraphics = NewSection();
+            chkGpu = NewCheck(0, 2);
+            var autoHdrRow = NewFlow();
+            lblAutoHdr = NewLabel(new Padding(3, 9, 3, 3));
+            cmbAutoHdr = NewCombo(Px(170)); cmbAutoHdr.Margin = new Padding(3, 6, 3, 2);
+            autoHdrRow.Controls.AddRange(new Control[] { lblAutoHdr, cmbAutoHdr });
+            lblGraphicsHint = NewLabel(new Padding(3, 2, 3, 2)); lblGraphicsHint.MaximumSize = new Size(innerWidth, 0); lblGraphicsHint.ForeColor = ColorOff; lblGraphicsHint.Tag = "keepColor";
+
             secPrograms = NewSection();
             chkClose = NewCheck(0, 2); lstClose = NewAppList();
             var closeRow = NewButtonRow(out btnCloseAdd, out btnCloseRemove); chkCloseRevert = NewCheck(20);
@@ -171,10 +183,11 @@ namespace GameSwitcher.Gui
 
             actionsPanel.Controls.AddRange(new Control[] {
                 lblActions, profileRow, chkOwnProfile,
-                secDisplay, chkHdr, chkHdrRevert, sdrRow, chkSdrRevert, chkDisplay, cmbDisplay, chkDisplayRevert,
+                secDisplay, chkHdr, chkHdrRevert, sdrRow, chkSdrRevert, brightRow, chkBrightRevert, chkDisplay, cmbDisplay, chkDisplayRevert,
                 chkMonitors, chkMonitorsRevert, chkNight, chkNightRevert,
                 secAudio, chkAudio, cmbAudio, chkAudioRevert, chkMic, cmbMic, chkMicRevert, volRow, chkVolumeRevert,
                 secSystem, chkPower, cmbPower, chkPowerRevert, chkKeepAwake,
+                secGraphics, chkGpu, autoHdrRow, lblGraphicsHint,
                 secPrograms, chkClose, lstClose, closeRow, chkCloseRevert, chkStart, lstStart, startRow, chkStartRevert,
                 chkScript, lblScriptStart, scriptStartRow, lblScriptEnd, scriptEndRow });
 
@@ -183,6 +196,8 @@ namespace GameSwitcher.Gui
             {
                 (chkHdr, "Hdr", "Enabled"), (chkHdrRevert, "Hdr", "Revert"),
                 (chkSdr, "Sdr", "Enabled"), (numSdr, "Sdr", "Level"), (chkSdrRevert, "Sdr", "Revert"),
+                (chkBright, "Brightness", "Enabled"), (numBright, "Brightness", "Level"), (chkBrightRevert, "Brightness", "Revert"),
+                (chkGpu, "Gpu", "Enabled"),
                 (chkDisplay, "Display", "Enabled"), (chkDisplayRevert, "Display", "Revert"),
                 (chkMonitors, "Monitors", "Enabled"), (chkMonitorsRevert, "Monitors", "Revert"),
                 (chkNight, "NightLight", "Enabled"), (chkNightRevert, "NightLight", "Revert"),
@@ -198,6 +213,7 @@ namespace GameSwitcher.Gui
             dependents = new List<(CheckBox, Control[])>
             {
                 (chkHdr, new Control[] { chkHdrRevert }), (chkSdr, new Control[] { numSdr, chkSdrRevert }),
+                (chkBright, new Control[] { numBright, chkBrightRevert }),
                 (chkDisplay, new Control[] { cmbDisplay, chkDisplayRevert }), (chkMonitors, new Control[] { chkMonitorsRevert }),
                 (chkNight, new Control[] { chkNightRevert }), (chkAudio, new Control[] { cmbAudio, chkAudioRevert }),
                 (chkMic, new Control[] { cmbMic, chkMicRevert }), (chkVolume, new Control[] { numVolume, chkVolumeRevert }),
@@ -312,7 +328,7 @@ namespace GameSwitcher.Gui
             Font = new Font(font, 9);
             lblHdr.Font = new Font(font, 11, FontStyle.Bold);
             lblActions.Font = new Font(font, 10, FontStyle.Bold);
-            foreach (var sec in new[] { secDisplay, secAudio, secSystem, secPrograms }) sec.Font = new Font(font, 9.5f, FontStyle.Bold);
+            foreach (var sec in new[] { secDisplay, secAudio, secSystem, secGraphics, secPrograms }) sec.Font = new Font(font, 9.5f, FontStyle.Bold);
 
             string[] columns = { "col.game", "col.source", "col.profile", "col.playtime", "col.lastPlayed", "col.processes" };
             for (int i = 0; i < columns.Length; i++) list.Columns[i].Text = T(columns[i]);
@@ -323,13 +339,30 @@ namespace GameSwitcher.Gui
             btnAddFolder.Text = T("btn.addFolder");
             btnRemove.Text = T("btn.remove");
             btnLog.Text = T("btn.log");
+            btnStats.Text = T("btn.stats");
             btnSettings.Text = T("btn.settings");
             lblActions.Text = T("actions.title");
             lblProfile.Text = T("profile.label");
             chkOwnProfile.Text = T("profile.own");
             secDisplay.Text = T("sec.display"); secAudio.Text = T("sec.audio"); secSystem.Text = T("sec.system"); secPrograms.Text = T("sec.programs");
+            secGraphics.Text = T("sec.graphics");
             chkHdr.Text = T("act.hdr"); chkHdrRevert.Text = T("act.hdrRevert");
             chkSdr.Text = T("act.sdr"); chkSdrRevert.Text = T("act.sdrRevert");
+            chkBright.Text = T("act.brightness") + (brightnessSupported ? "" : " – " + T("label.unsupported"));
+            chkBrightRevert.Text = T("act.brightnessRevert");
+            chkGpu.Text = T("act.gpu");
+            lblAutoHdr.Text = T("act.autoHdr");
+            lblGraphicsHint.Text = T("graphics.hint");
+            loading = true;
+            string hdrMode = (cmbAutoHdr.SelectedItem as Item)?.Code ?? "default";
+            cmbAutoHdr.Items.Clear();
+            foreach (string m in new[] { "default", "on", "off" })
+            {
+                var item = new Item { Code = m, Name = T("autohdr." + m) };
+                cmbAutoHdr.Items.Add(item);
+                if (m == hdrMode) cmbAutoHdr.SelectedItem = item;
+            }
+            loading = false;
             chkDisplay.Text = T("act.display"); chkDisplayRevert.Text = T("act.displayRevert");
             chkMonitors.Text = T("act.monitors"); chkMonitorsRevert.Text = T("act.monitorsRevert");
             chkNight.Text = T("act.nightLight") + (nightLightSupported ? "" : " – " + T("label.unsupported"));
@@ -365,6 +398,7 @@ namespace GameSwitcher.Gui
             UpdateHdr(); UpdateRunning(); UpdateAudioLabel(); UpdatePauseLabel();
             UpdateSourceFilter(); UpdateProfileList(); ShowGames();
             ApplyTheme();
+            UpdateBatteryLabel();
         }
 
         public void ChangeTheme(string theme)
@@ -372,13 +406,38 @@ namespace GameSwitcher.Gui
             settings.Theme = theme;
             Save();
             ApplyTheme();
+            UpdateBatteryLabel();
         }
 
         #endregion
 
         #region Status displays
 
-        public void Save() => settings.Save(games);
+        public void Save()
+        {
+            settings.Save(games);
+            if (!demo && scanned) SyncGraphics();
+        }
+
+        // Writes the per-program GPU / Auto HDR settings of the selected games (and restores unneeded ones)
+        void SyncGraphics()
+        {
+            try
+            {
+                var covered = new Dictionary<string, IEnumerable<string>>();
+                foreach (string key in settings.Selected.Keys)
+                {
+                    Game g = games.FirstOrDefault(x => x.Key == key);
+                    covered[key] = g != null && GraphicsSync.IsProgram(g.MainExe) ? new[] { g.MainExe } : new string[0];
+                }
+                // games the service detected automatically use the default profile
+                if (settings.AutoDetect)
+                    foreach (string key in GraphicsSync.SeenKeys().Where(k => k.StartsWith("auto:") && !covered.ContainsKey(k)))
+                        covered[key] = new string[0];
+                GraphicsSync.Sync(Config.Load(), covered);
+            }
+            catch (Exception ex) { status.Text = ex.Message; }
+        }
 
         public void UpdateServiceState() => serviceRunning = !demo && Autostart.ServiceRunning();
         public bool ServiceIsRunning => serviceRunning;
@@ -433,6 +492,29 @@ namespace GameSwitcher.Gui
         }
 
         static T2 SafeGet<T2>(Func<T2> f) { try { return f(); } catch { return default(T2); } }
+
+        // Battery levels as last read by the service (battery.json); hidden when off, missing or outdated
+        void UpdateBatteryLabel()
+        {
+            List<Battery> list = null;
+            if (settings.Battery)
+            {
+                if (demo)
+                    list = new List<Battery> { new Battery { Name = "DualSense", Percent = 72 }, new Battery { Name = "G Pro Wireless", Percent = 18 } };
+                else
+                {
+                    var file = Json.ReadFile<BatteryFile>(Paths.Data("battery.json"));
+                    if (file != null && DateTime.TryParse(file.Time, null, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime t) && (DateTime.Now - t.ToLocalTime()).TotalMinutes < 5)
+                        list = file.Devices;
+                }
+            }
+            lblBattery.Visible = list != null && list.Count > 0;
+            if (!lblBattery.Visible) return;
+            bool Low(Battery b) => !b.Charging && b.Estimate() >= 0 && b.Estimate() <= settings.BatteryThreshold;
+            lblBattery.Text = T("battery.label") + " " + string.Join("   ·   ", list.OrderBy(b => b.Name).Select(b => b.Text(" ") + (Low(b) && b.Percent >= 0 ? " (" + T("battery.low") + ")" : "")));
+            bool low = list.Any(Low);
+            lblBattery.ForeColor = low ? Color.FromArgb(220, 80, 40) : lblAudio.ForeColor;
+        }
 
         void UpdatePauseLabel()
         {
@@ -560,6 +642,7 @@ namespace GameSwitcher.Gui
             status.Text = T("status.scanning");
             Application.DoEvents();
             games = demo ? DemoGames() : GameLibrary.FindAll(settings.CustomFolders, settings.CustomExes, settings.Selected.Values);
+            scanned = true;
             Save();
             Cursor = Cursors.Default;
             UpdateSourceFilter();
@@ -732,6 +815,8 @@ namespace GameSwitcher.Gui
                     // selection fields stay usable (disabled ones render poorly in the dark design)
                     c.Enabled = editable && (c is ComboBox || c is NumericUpDown || master.Checked);
             if (!nightLightSupported) chkNight.Enabled = chkNightRevert.Enabled = false;
+            if (!brightnessSupported && !chkBright.Checked) chkBright.Enabled = numBright.Enabled = chkBrightRevert.Enabled = false;
+            cmbAutoHdr.Enabled = editable;
         }
 
         void ShowActions()
@@ -753,6 +838,8 @@ namespace GameSwitcher.Gui
             FillDeviceCombo(cmbMic, Audio.Input, a["Mic"]);
             FillModeCombo(a["Display"]);
             FillPowerCombo(a["Power"]);
+            string autoHdr = a["AutoHdr"].Str("Mode");
+            cmbAutoHdr.SelectedItem = cmbAutoHdr.Items.Cast<Item>().FirstOrDefault(i => i.Code == autoHdr) ?? cmbAutoHdr.Items.Cast<Item>().FirstOrDefault();
             lstClose.Items.Clear(); foreach (string p in a["CloseApps"].Strings("Apps")) lstClose.Items.Add(AppEntry(p));
             lstStart.Items.Clear(); foreach (string p in a["StartApps"].Strings("Apps")) lstStart.Items.Add(AppEntry(p));
             loading = false;
@@ -776,6 +863,7 @@ namespace GameSwitcher.Gui
                 }
             if (cmbDisplay.SelectedItem is DisplayMode m) { a["Display"]["Width"] = m.Width; a["Display"]["Height"] = m.Height; a["Display"]["Hz"] = m.Hz; }
             if (cmbPower.SelectedItem is Item plan) { a["Power"]["PlanId"] = plan.Code; a["Power"]["PlanName"] = plan.Name; }
+            if (cmbAutoHdr.SelectedItem is Item hdrMode) a["AutoHdr"]["Mode"] = hdrMode.Code;
             a["CloseApps"]["Apps"] = lstClose.Items.Cast<Item>().Select(i => i.Code).ToArray();
             a["StartApps"]["Apps"] = lstStart.Items.Cast<Item>().Select(i => i.Code).ToArray();
             UpdateActionControls();
@@ -836,6 +924,7 @@ namespace GameSwitcher.Gui
             btnRescan.Click += (s, e) => Scan();
             btnRemove.Click += (s, e) => RemoveSelectedGame();
             btnSettings.Click += (s, e) => { using (var dlg = new SettingsDialog(this, settings)) dlg.ShowDialog(this); };
+            btnStats.Click += (s, e) => { using (var dlg = new StatsDialog(this, ReadPlaytime(), Theme.IsDark(settings.Theme))) dlg.ShowDialog(this); };
             btnLog.Click += (s, e) =>
             {
                 string log = Paths.Data("watcher.log");
@@ -881,7 +970,7 @@ namespace GameSwitcher.Gui
                 else if (control is NumericUpDown n) n.ValueChanged += (s, e) => SaveActions();
                 else control.Leave += (s, e) => SaveActions();
             }
-            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower }) c.SelectedIndexChanged += (s, e) => SaveActions();
+            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower, cmbAutoHdr }) c.SelectedIndexChanged += (s, e) => SaveActions();
             cmbAudio.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbAudio, Audio.Output, EditActions.Actions["Audio"]); loading = false; };
             cmbMic.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbMic, Audio.Input, EditActions.Actions["Mic"]); loading = false; };
 
@@ -931,12 +1020,13 @@ namespace GameSwitcher.Gui
             timer.Tick += (s, e) =>
             {
                 UpdateHdr(); UpdateRunning(); UpdateAudioLabel(); UpdatePauseLabel();
-                if (++tick % 5 == 0) { UpdateServiceState(); UpdateStatus(); UpdatePlaytimeColumns(); }
+                if (++tick % 5 == 0) { UpdateServiceState(); UpdateStatus(); UpdatePlaytimeColumns(); UpdateBatteryLabel(); }
             };
 
             Shown += (s, e) =>
             {
                 ApplyTheme();
+                UpdateBatteryLabel();
                 UpdateAudioLabel(); UpdateHdr(); UpdatePauseLabel();
                 Scan();
                 FirstRunSetup();
@@ -1010,7 +1100,14 @@ namespace GameSwitcher.Gui
             s.Actions["KeepAwake"]["Enabled"] = true;
             playtime = new Dictionary<string, Dictionary<string, object>>();
             foreach (var (name, secs, daysAgo) in new[] { ("Arcfall Legends", 152000, 0), ("Deep Horizon", 48200, 2), ("Mythwood Chronicles", 391000, 1), ("Neon Drift", 12600, 5), ("Velocity Rush", 2700, 9) })
-                playtime["demo:" + name] = new Dictionary<string, object> { ["Name"] = name, ["Seconds"] = secs, ["LastPlayed"] = DateTime.Now.AddDays(-daysAgo).ToString("o") };
+            {
+                // sample history for the statistics window
+                var random = new Random(name.Length * 7);
+                var days = new Dictionary<string, object>();
+                for (int d = 0; d < 365; d++)
+                    if (random.NextDouble() < (d < 60 ? 0.35 : 0.15)) days[DateTime.Today.AddDays(-d - daysAgo).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)] = random.Next(1200, 3 * 3600 * (name.Length % 3 + 1));
+                playtime["demo:" + name] = new Dictionary<string, object> { ["Name"] = name, ["Seconds"] = secs, ["LastPlayed"] = DateTime.Now.AddDays(-daysAgo).ToString("o"), ["Days"] = days };
+            }
             return s;
         }
 

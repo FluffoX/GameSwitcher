@@ -20,6 +20,7 @@ namespace GameSwitcher
         public List<string> HdrDisplays { get; set; } = new List<string>();
         public List<SdrChange> Sdr { get; set; } = new List<SdrChange>();
         public bool NightLight { get; set; }
+        public List<BrightnessChange> Brightness { get; set; } = new List<BrightnessChange>();
         public DeviceChange Audio { get; set; }
         public DeviceChange Mic { get; set; }
         public VolumeChange Volume { get; set; }
@@ -31,6 +32,7 @@ namespace GameSwitcher
     }
     class DisplayChange { public int Width { get; set; } public int Height { get; set; } public int Hz { get; set; } public int SetWidth { get; set; } public int SetHeight { get; set; } public int SetHz { get; set; } }
     class SdrChange { public string Key { get; set; } public int Level { get; set; } }
+    class BrightnessChange { public string Key { get; set; } public string Name { get; set; } public int Previous { get; set; } public int Set { get; set; } }
     class DeviceChange { public string PreviousId { get; set; } public string PreviousName { get; set; } public string SetId { get; set; } }
     class VolumeChange { public int Previous { get; set; } public int Set { get; set; } }
     class PowerChange { public string PreviousId { get; set; } public string PreviousName { get; set; } }
@@ -138,6 +140,20 @@ namespace GameSwitcher
                         DisplayConfig.SetSdrBrightness(d, level);
                         c.Sdr.Add(new SdrChange { Key = d.Key, Level = prev });
                         Log.Write(T("log.sdrSet", level, d.Name));
+                    }
+                });
+
+            if (cfg.On("Brightness"))
+                Step(T("act.brightness"), () =>
+                {
+                    int level = cfg["Brightness"].Int("Level", 80);
+                    var monitors = MonitorBrightness.Get();
+                    if (monitors.Count == 0) { Log.Write(T("log.unsupported", T("act.brightness"))); return; }
+                    foreach (var m in monitors)
+                    {
+                        if (m.Percent == level || MonitorBrightness.Set(m.Key, level) == 0) continue;
+                        c.Brightness.Add(new BrightnessChange { Key = m.Key, Name = m.Name, Previous = m.Percent, Set = level });
+                        Log.Write(T("log.brightnessSet", level, m.Name));
                     }
                 });
 
@@ -335,6 +351,34 @@ namespace GameSwitcher
             {
                 try { NightLight.Set(true); Log.Write(T("log.nightLightOn")); }
                 catch (Exception ex) { Log.Write(T("log.actionError", T("act.nightLight"), ex.Message)); }
+            }
+
+            if (c.Brightness.Count > 0 && cfg.Revert("Brightness"))
+            {
+                try
+                {
+                    // only monitors still at the level set for the game (a manual change wins);
+                    // DDC/CI occasionally does not answer, so reading and writing are retried
+                    foreach (var saved in c.Brightness)
+                    {
+                        MonitorLevel m = null;
+                        for (int i = 0; i < 3 && m == null; i++)
+                        {
+                            if (i > 0) Thread.Sleep(500);
+                            m = MonitorBrightness.Get().FirstOrDefault(x => x.Key == saved.Key);
+                        }
+                        if (m == null) { Log.Write(T("log.actionError", T("act.brightness"), saved.Name + ": DDC/CI")); continue; }
+                        if (Math.Abs(m.Percent - saved.Set) > 1) continue;
+                        bool done = false;
+                        for (int i = 0; i < 3 && !done; i++)
+                        {
+                            if (i > 0) Thread.Sleep(500);
+                            done = MonitorBrightness.Set(saved.Key, saved.Previous) > 0;
+                        }
+                        Log.Write(done ? T("log.brightnessSet", saved.Previous, saved.Name) : T("log.actionError", T("act.brightness"), saved.Name + ": DDC/CI"));
+                    }
+                }
+                catch (Exception ex) { Log.Write(T("log.actionError", T("act.brightness"), ex.Message)); }
             }
 
             if (c.Sdr.Count > 0 && cfg.Revert("Sdr"))

@@ -63,7 +63,7 @@ namespace GameSwitcher.Gui
                             break;
                         default:
                             c.BackColor = back;
-                            if (c != keepForeColor) c.ForeColor = text;
+                            if (c != keepForeColor && !(c.Tag is string tag && tag == "keepColor")) c.ForeColor = text;   // e.g. gray hints
                             break;
                     }
                     if (c is ListView lv)

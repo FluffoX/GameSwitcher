@@ -37,7 +37,8 @@ namespace GameSwitcher
 
         readonly NotifyIcon tray = new NotifyIcon();
         readonly ContextMenuStrip menu = new ContextMenuStrip();
-        readonly ToolStripMenuItem miStatus, miOpen, miHdr, miManual, miPause, miPause1, miPause2, miPauseReboot, miResume, miExit;
+        readonly ToolStripMenuItem miStatus, miOpen, miRecent, miHdr, miManual, miPause, miPause1, miPause2, miPauseReboot, miResume, miExit;
+        readonly List<ToolStripItem> batteryItems = new List<ToolStripItem>();
         readonly HotkeyWindow hotkey = new HotkeyWindow();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 1000 };
 
@@ -52,7 +53,7 @@ namespace GameSwitcher
         GameRef active;
         int idleSeconds;
         readonly Dictionary<string, (string Name, DateTime Last)> play = new Dictionary<string, (string, DateTime)>();
-        DateTime playFlush = DateTime.Now;
+        DateTime playFlush = DateTime.Now, sessionStart;
 
         static readonly GameRef ManualGame = new GameRef { Key = "manual" };
 
@@ -65,6 +66,9 @@ namespace GameSwitcher
             miStatus = Add(menu.Items, null); miStatus.Enabled = false;
             menu.Items.Add(new ToolStripSeparator());
             miOpen = Add(menu.Items, OpenGui); miOpen.Font = new Font(miOpen.Font, FontStyle.Bold);
+            miRecent = Add(menu.Items, null);
+            miRecent.DropDownItems.Add(new ToolStripMenuItem("-"));   // filled when the menu opens
+            menu.Opening += (s, e) => UpdateMenuExtras();
             miHdr = Add(menu.Items, ToggleHdr);
             miManual = Add(menu.Items, () => { manual = !manual; Tick(); });
             miPause = Add(menu.Items, null);
@@ -87,6 +91,8 @@ namespace GameSwitcher
 
             tray.Visible = true;
             ListenForExitRequest();
+            RecoverCouchState();
+            StartDevicePolling();
             timer.Tick += (s, e) => Tick();
             timer.Start();
             Tick();
@@ -177,11 +183,16 @@ namespace GameSwitcher
             string path = Paths.Data("playtime.json");
             var data = Json.ReadFile(path) ?? new Dictionary<string, object>();
             var old = data.Dict(key);
+            // per day, for the statistics
+            var days = old.Dict("Days") ?? new Dictionary<string, object>();
+            string today = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            days[today] = (long)Math.Round(days.Double(today) + seconds);
             data[key] = new Dictionary<string, object>
             {
                 ["Name"] = name,
                 ["Seconds"] = (long)Math.Round(old.Double("Seconds") + seconds),
-                ["LastPlayed"] = DateTime.Now.ToString("o")
+                ["LastPlayed"] = DateTime.Now.ToString("o"),
+                ["Days"] = days
             };
             try { Json.WriteFile(path, data); } catch { }
         }
@@ -228,27 +239,60 @@ namespace GameSwitcher
             return found;
         }
 
-        void Notify(string text)
+        // Shows a notification; the parts are joined, empty ones skipped. General notifications
+        // (settings applied/restored) depend on their option, the extras on their own options.
+        void Notify(params string[] parts)
         {
-            if (config.Notifications) tray.ShowBalloonTip(4000, "GameSwitcher", text, ToolTipIcon.Info);
+            string text = string.Join("\n", parts.Where(p => !string.IsNullOrEmpty(p)));
+            if (text.Length > 0) tray.ShowBalloonTip(5000, "GameSwitcher", text, ToolTipIcon.Info);
+        }
+
+        static string FormatDuration(TimeSpan t)
+        {
+            long minutes = Math.Max(1, (long)Math.Round(t.TotalMinutes));
+            return minutes >= 60 ? T("time.hm", minutes / 60, minutes % 60) : T("time.m", minutes);
         }
 
         void StartSession(GameRef game)
         {
             active = game;
             idleSeconds = 0;
+            sessionStart = DateTime.Now;
             string name = game == ManualGame ? T("tray.manual") : game.Name;
             Log.Write(game == ManualGame ? T("log.manualStart") : T("log.gameStarted", name));
+            if (game != ManualGame) RecordGraphicsPrograms(game);
             GameActions.Start(config, game.Key, name);
-            Notify(T("notify.start", name));
+            Notify(config.Notifications ? T("notify.start", name) : null, config.BatteryGameStart ? LowBatteryText("notify.batteryGameStart") : null);
         }
 
         void StopSession()
         {
-            Log.Write(active.Key == "manual" ? T("log.manualStop") : T("log.noGame"));
+            bool game = active.Key != "manual";
+            Log.Write(game ? T("log.noGame") : T("log.manualStop"));
             GameActions.End(config);
+            string summary = game && config.SessionSummary ? T("notify.session", active.Name, FormatDuration(DateTime.Now - sessionStart)) : null;
             active = null;
-            Notify(T("notify.end"));
+            Notify(summary, config.Notifications ? T("notify.end") : null);
+        }
+
+        // Per-program graphics settings (GPU, Auto HDR) need the program paths; Windows applies them from the next start
+        void RecordGraphicsPrograms(GameRef game)
+        {
+            try
+            {
+                ActionSet a = config.ActionsFor(game.Key);
+                string hdr = a["AutoHdr"].Str("Mode");
+                if (!a.On("Gpu") && hdr != "on" && hdr != "off") return;
+                var names = new HashSet<string>(game.Exes.Select(e => Path.GetFileNameWithoutExtension(e).ToLowerInvariant()));
+                var paths = new List<string>();
+                foreach (Process p in Process.GetProcesses())
+                {
+                    if (names.Contains(p.ProcessName.ToLowerInvariant())) paths.Add(GraphicsSync.ProcessPath(p));
+                    p.Dispose();
+                }
+                GraphicsSync.GameStarted(config, game.Key, paths);
+            }
+            catch (Exception ex) { Log.Write(T("log.actionError", "GPU", ex.Message)); }
         }
 
         void Tick()
@@ -271,6 +315,7 @@ namespace GameSwitcher
                     // manual mode and pause end at once; a game gets a grace period for launcher restarts
                     if (active.Key == "manual" || paused != null || idleSeconds >= IdleSecondsBeforeRevert) StopSession();
                 }
+                UpdateCouch(paused != null);
                 UpdateTrayTexts(paused);
             }
             catch (Exception ex)
@@ -297,6 +342,174 @@ namespace GameSwitcher
                 Log.Write(T("log.recovered"));
                 GameActions.End(config);
             }
+        }
+
+        #endregion
+
+        #region Batteries and couch mode
+
+        // Devices are polled on a background thread: HID requests can take a moment
+        readonly ManualResetEvent stopPolling = new ManualResetEvent(false);
+        Thread poller;
+        volatile List<Battery> batteries = new List<Battery>();
+        volatile bool controllerPresent, controllerKnown;
+        readonly HashSet<string> batteryWarned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CouchState couch;
+        DateTime controllerLost = DateTime.MaxValue;
+        bool? lastControllerPresent;
+        const int CouchGraceSeconds = 15;
+
+        void StartDevicePolling()
+        {
+            poller = new Thread(() =>
+            {
+                DateTime lastBattery = DateTime.MinValue;
+                bool batteryShown = false;
+                while (!stopPolling.WaitOne(3000))
+                {
+                    try
+                    {
+                        Config c = config;
+                        if (c.Couch.Enabled) { controllerPresent = Batteries.ControllerConnected(); controllerKnown = true; }
+                        else controllerKnown = false;
+                        if (c.Battery && (DateTime.UtcNow - lastBattery).TotalSeconds >= 60)
+                        {
+                            lastBattery = DateTime.UtcNow;
+                            var list = Batteries.Read();
+                            batteries = list;
+                            batteryShown = true;
+                            Json.WriteFile(Paths.Data("battery.json"), new Dictionary<string, object> { ["Time"] = DateTime.Now.ToString("o"), ["Devices"] = list });
+                            invoker.BeginInvoke((Action)CheckBatteries);
+                        }
+                        else if (!c.Battery && batteryShown)
+                        {
+                            batteryShown = false;
+                            lastBattery = DateTime.MinValue;
+                            batteries = new List<Battery>();
+                            try { File.Delete(Paths.Data("battery.json")); } catch { }
+                        }
+                    }
+                    catch (Exception ex) { Log.Write(T("log.error", ex.Message)); }
+                }
+            }) { IsBackground = true, Name = "Device polling" };
+            poller.Start();
+        }
+
+        List<Battery> LowBatteries() =>
+            batteries.Where(b => !b.Charging && b.Estimate() >= 0 && b.Estimate() <= config.BatteryThreshold).ToList();
+
+        string LowBatteryText(string key)
+        {
+            var low = LowBatteries();
+            return config.Battery && low.Count > 0 ? T(key, string.Join(", ", low.Select(b => b.Text()))) : null;
+        }
+
+        // Warns once when a battery drops to the threshold; again only after it was charged
+        void CheckBatteries()
+        {
+            if (!config.Battery || !config.BatteryWarn) return;
+            var low = LowBatteries();
+            foreach (var b in low.Where(b => !batteryWarned.Contains(b.Name)))
+            {
+                batteryWarned.Add(b.Name);
+                tray.ShowBalloonTip(8000, "GameSwitcher", T("notify.batteryLow", b.Text()), ToolTipIcon.Warning);
+                Log.Write(T("notify.batteryLow", b.Text()));
+            }
+            foreach (var b in batteries.Where(b => b.Charging || b.Estimate() > config.BatteryThreshold + 5)) batteryWarned.Remove(b.Name);
+        }
+
+        // A couch mode left active by a crash or restart: revert it unless a controller is still connected
+        void RecoverCouchState()
+        {
+            CouchState pending = Couch.LoadPending();
+            if (pending == null) return;
+            if (config.Couch.Enabled && Batteries.ControllerConnected()) { couch = pending; lastControllerPresent = true; }
+            else Couch.End(config.Couch, pending);
+        }
+
+        void UpdateCouch(bool paused)
+        {
+            if (!config.Couch.Enabled)
+            {
+                if (couch != null) { Couch.End(config.Couch, couch); couch = null; }
+                lastControllerPresent = null;
+                return;
+            }
+            if (!controllerKnown) return;
+            bool present = controllerPresent;
+            // the first reading only sets the baseline: a controller that is already on at logon switches nothing
+            if (lastControllerPresent == null) { lastControllerPresent = present; return; }
+            if (present)
+            {
+                controllerLost = DateTime.MaxValue;
+                if (lastControllerPresent == false && couch == null && !paused)
+                {
+                    couch = Couch.Start(config.Couch);
+                    if (config.Notifications) Notify(T("notify.couchOn"));
+                }
+            }
+            else if (couch != null)
+            {
+                if (controllerLost == DateTime.MaxValue) controllerLost = DateTime.Now;
+                else if ((DateTime.Now - controllerLost).TotalSeconds >= CouchGraceSeconds)
+                {
+                    Couch.End(config.Couch, couch);
+                    couch = null;
+                    controllerLost = DateTime.MaxValue;
+                    if (config.Notifications) Notify(T("notify.couchOff"));
+                }
+            }
+            lastControllerPresent = present;
+        }
+
+        // Battery levels and recently played games in the tray menu, rebuilt each time it opens
+        void UpdateMenuExtras()
+        {
+            foreach (var item in batteryItems) { menu.Items.Remove(item); item.Dispose(); }
+            batteryItems.Clear();
+            if (config.Battery && batteries.Count > 0)
+            {
+                int at = menu.Items.IndexOf(miStatus) + 1;
+                foreach (var b in batteries.OrderBy(b => b.Name))
+                {
+                    var item = new ToolStripMenuItem(T("battery.label") + " " + b.Text()) { Enabled = false };
+                    menu.Items.Insert(at++, item);
+                    batteryItems.Add(item);
+                }
+            }
+
+            miRecent.Text = T("tray.recent");
+            miRecent.Visible = config.RecentInTray;
+            if (!config.RecentInTray) return;
+            foreach (ToolStripItem old in miRecent.DropDownItems.Cast<ToolStripItem>().ToList()) old.Dispose();
+            miRecent.DropDownItems.Clear();
+            var playtime = Json.ReadFile(Paths.Data("playtime.json")) ?? new Dictionary<string, object>();
+            var recent = playtime.Where(kv => kv.Value is Dictionary<string, object>)
+                .Select(kv => (Key: kv.Key, Data: (Dictionary<string, object>)kv.Value))
+                .Select(g => (g.Key, Name: g.Data.Str("Name"), Last: DateTime.TryParse(g.Data.Str("LastPlayed"), null, DateTimeStyles.RoundtripKind, out DateTime d) ? d : DateTime.MinValue))
+                .Where(g => g.Key != "manual" && g.Name.Length > 0)
+                .OrderByDescending(g => g.Last).Take(5).ToList();
+            foreach (var g in recent)
+            {
+                string launch = config.Library.FirstOrDefault(x => x.Key == g.Key)?.Launch;
+                if (string.IsNullOrEmpty(launch) && g.Key.StartsWith("auto:")) launch = g.Key.Substring(5);
+                if (string.IsNullOrEmpty(launch) && File.Exists(g.Key)) launch = g.Key;
+                var item = new ToolStripMenuItem(g.Name) { Enabled = !string.IsNullOrEmpty(launch) };
+                item.Click += (s, e) => LaunchGame(launch);
+                miRecent.DropDownItems.Add(item);
+            }
+            if (recent.Count == 0) miRecent.DropDownItems.Add(new ToolStripMenuItem(T("tray.recentNone")) { Enabled = false });
+        }
+
+        static void LaunchGame(string target)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(target) { UseShellExecute = true };
+                if (File.Exists(target)) psi.WorkingDirectory = Path.GetDirectoryName(target);
+                Process.Start(psi);
+            }
+            catch (Exception ex) { Log.Write(T("log.error", ex.Message)); }
         }
 
         #endregion
@@ -439,6 +652,8 @@ namespace GameSwitcher
         {
             timer.Stop();
             if (active != null) StopSession();
+            stopPolling.Set();
+            if (couch != null) { Couch.End(config.Couch, couch); couch = null; }
             tray.Visible = false;
             hotkey.Unregister();
             ExitThread();
