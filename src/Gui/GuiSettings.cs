@@ -19,6 +19,7 @@ namespace GameSwitcher.Gui
         public Dictionary<string, object> GraphicsManaged = new Dictionary<string, object>();
         // Collapsed sections of the actions panel; the rarely used ones start collapsed
         public HashSet<string> Collapsed = new HashSet<string> { "input", "graphics" };
+        public bool ShowHints = true;   // explanations below the options
         public bool Demo;
 
         public static GuiSettings Load()
@@ -28,6 +29,7 @@ namespace GameSwitcher.Gui
             s.SessionSummary = c.SessionSummary; s.RecentInTray = c.RecentInTray;
             s.Battery = c.Battery; s.BatteryWarn = c.BatteryWarn; s.BatteryGameStart = c.BatteryGameStart; s.BatteryThreshold = c.BatteryThreshold;
             s.Couch = c.Couch;
+            s.ShowHints = c.Raw.Bool("ShowHints", true);
             s.GraphicsManaged = c.Raw.Dict("GraphicsManaged") ?? new Dictionary<string, object>();
             if (c.Raw.ContainsKey("CollapsedSections")) s.Collapsed = new HashSet<string>(c.Raw.Strings("CollapsedSections"));
             var raw = c.Raw;
@@ -80,6 +82,7 @@ namespace GameSwitcher.Gui
                 },
                 ["GraphicsManaged"] = GraphicsManaged,
                 ["CollapsedSections"] = Collapsed.ToArray(),
+                ["ShowHints"] = ShowHints,
                 // all found games, so the service's automatic detection uses the same keys as the list;
                 // with launch information for "Recently played" in the tray menu
                 ["Library"] = library.Where(g => g.Source != "Missing").Select(g => new Dictionary<string, object>

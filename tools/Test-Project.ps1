@@ -28,8 +28,8 @@ foreach ($f in Get-ChildItem $langDir -Filter *.json) {
     }
 }
 
-# Every text key used in the C# code (T("key")) exists in English
-$used = Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.cs | Select-String -Pattern '\bT\("([a-zA-Z]+\.[a-zA-Z0-9]+)"' -AllMatches |
+# Every text key used in the C# code (T("key"), Hint("key")) exists in English
+$used = Get-ChildItem (Join-Path $root 'src') -Recurse -Filter *.cs | Select-String -Pattern '\b(?:T|Hint)\("([a-zA-Z]+\.[a-zA-Z0-9]+)"' -AllMatches |
     ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 foreach ($k in $used) { if ($enKeys -notcontains $k) { Write-Host "UNKNOWN KEY  $k"; $failed++ } }
 

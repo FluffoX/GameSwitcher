@@ -80,6 +80,9 @@ namespace GameSwitcher.Gui
         readonly ContextMenuStrip menu = new ContextMenuStrip(), addMenu = new ContextMenuStrip(), pauseMenu = new ContextMenuStrip();
         readonly ToolStripMenuItem miLaunch, miProfile, miShortcut, miOpen, miRemove, miAddRunning, miAddFile, miPause1, miPause2, miPauseReboot;
         readonly Timer timer = new Timer { Interval = 2000 };
+        readonly ToolTip tips = new ToolTip { AutoPopDelay = 30000, InitialDelay = 500 };
+        readonly List<(Label Label, string Key, Control Owner)> hints = new List<(Label, string, Control)>();
+        readonly Label hintProfile;
         readonly List<(Control Control, string Action, string Field)> bindings;
         readonly List<(CheckBox Master, Control[] Dependents)> dependents;
 
@@ -185,7 +188,7 @@ namespace GameSwitcher.Gui
             lblAutoHdr = NewLabel(new Padding(3, 9, 3, 3));
             cmbAutoHdr = NewCombo(Px(170)); cmbAutoHdr.Margin = new Padding(3, 6, 3, 2);
             autoHdrRow.Controls.AddRange(new Control[] { lblAutoHdr, cmbAutoHdr });
-            lblGraphicsHint = NewLabel(new Padding(3, 2, 3, 2)); lblGraphicsHint.MaximumSize = new Size(innerWidth, 0); lblGraphicsHint.Tag = "hint";
+            lblGraphicsHint = Hint("graphics.hint", chkGpu, 3);
 
             secPrograms = NewSection();
             chkClose = NewCheck(0, 2); lstClose = NewAppList();
@@ -196,30 +199,43 @@ namespace GameSwitcher.Gui
             lblScriptStart = NewLabel(new Padding(23, 4, 3, 0)); var scriptStartRow = NewScriptRow(txtScriptStart, out btnScriptStart);
             lblScriptEnd = NewLabel(new Padding(23, 4, 3, 0)); var scriptEndRow = NewScriptRow(txtScriptEnd, out btnScriptEnd);
 
+            // Short explanations with examples below the options (can be hidden in the settings; also shown as tooltips)
+            hintProfile = Hint("hint.profile", cmbProfile, 3);
             sections = new List<(Label, string, string, Control[], string[])>
             {
                 (secDisplay, "display", "sec.display",
-                    new Control[] { chkHdr, hdrDisplayRow, chkHdrRevert, sdrRow, chkSdrRevert, brightRow, chkBrightRevert, chkDisplay, cmbDisplay, chkDisplayRevert,
-                                    chkMonitors, chkMonitorsRevert, chkNight, chkNightRevert },
+                    new Control[] { chkHdr, Hint("hint.hdr", chkHdr), hdrDisplayRow, chkHdrRevert,
+                                    sdrRow, Hint("hint.sdr", chkSdr), chkSdrRevert,
+                                    brightRow, Hint("hint.brightness", chkBright), chkBrightRevert,
+                                    chkDisplay, Hint("hint.display", chkDisplay), cmbDisplay, chkDisplayRevert,
+                                    chkMonitors, Hint("hint.monitors", chkMonitors), chkMonitorsRevert,
+                                    chkNight, Hint("hint.nightLight", chkNight), chkNightRevert },
                     new[] { "Hdr", "Sdr", "Brightness", "Display", "Monitors", "NightLight" }),
                 (secAudio, "audio", "sec.audio",
-                    new Control[] { chkAudio, cmbAudio, chkAudioRevert, chkMic, cmbMic, chkMicRevert, volRow, chkVolumeRevert },
+                    new Control[] { chkAudio, Hint("hint.audio", chkAudio), cmbAudio, chkAudioRevert,
+                                    chkMic, Hint("hint.mic", chkMic), cmbMic, chkMicRevert,
+                                    volRow, Hint("hint.volume", chkVolume), chkVolumeRevert },
                     new[] { "Audio", "Mic", "Volume" }),
                 (secSystem, "system", "sec.system",
-                    new Control[] { chkPower, cmbPower, chkPowerRevert, chkKeepAwake },
+                    new Control[] { chkPower, Hint("hint.power", chkPower), cmbPower, chkPowerRevert,
+                                    chkKeepAwake, Hint("hint.keepAwake", chkKeepAwake) },
                     new[] { "Power", "KeepAwake" }),
                 (secInput, "input", "sec.input",
-                    new Control[] { chkMouseAccel, chkMouseAccelRevert, speedRow, chkSpeedRevert, chkAccess, chkAccessRevert, chkWinKey },
+                    new Control[] { chkMouseAccel, Hint("hint.mouseAccel", chkMouseAccel), chkMouseAccelRevert,
+                                    speedRow, Hint("hint.mouseSpeed", chkSpeed), chkSpeedRevert,
+                                    chkAccess, Hint("hint.accessKeys", chkAccess), chkAccessRevert,
+                                    chkWinKey, Hint("hint.winKey", chkWinKey) },
                     new[] { "MouseAccel", "MouseSpeed", "AccessKeys", "WinKey" }),
                 (secGraphics, "graphics", "sec.graphics",
-                    new Control[] { chkGpu, autoHdrRow, lblGraphicsHint },
+                    new Control[] { chkGpu, Hint("hint.gpu", chkGpu), autoHdrRow, Hint("hint.autoHdr", cmbAutoHdr, 3), lblGraphicsHint },
                     new[] { "Gpu", "AutoHdr" }),
                 (secPrograms, "programs", "sec.programs",
-                    new Control[] { chkClose, lstClose, closeRow, chkCloseRevert, chkStart, lstStart, startRow, chkStartRevert,
-                                    chkScript, lblScriptStart, scriptStartRow, lblScriptEnd, scriptEndRow },
+                    new Control[] { chkClose, Hint("hint.close", chkClose), lstClose, closeRow, chkCloseRevert,
+                                    chkStart, Hint("hint.start", chkStart), lstStart, startRow, chkStartRevert,
+                                    chkScript, Hint("hint.script", chkScript), lblScriptStart, scriptStartRow, lblScriptEnd, scriptEndRow },
                     new[] { "CloseApps", "StartApps", "Script" }),
             };
-            actionsPanel.Controls.AddRange(new Control[] { lblActions, profileRow, chkOwnProfile });
+            actionsPanel.Controls.AddRange(new Control[] { lblActions, profileRow, hintProfile, chkOwnProfile });
             foreach (var s in sections)
             {
                 s.Header.Cursor = Cursors.Hand;
@@ -337,6 +353,14 @@ namespace GameSwitcher.Gui
             return row;
         }
 
+
+        // A gray explanation below an option; owner gets the same text as tooltip
+        Label Hint(string key, Control owner, int indent = 23)
+        {
+            var l = new Label { AutoSize = true, Margin = new Padding(indent, 0, 3, 4), Tag = "hint", MaximumSize = new Size(innerWidth - indent + 3, 0) };
+            hints.Add((l, key, owner));
+            return l;
+        }
         Label NewSection() => NewLabel(new Padding(3, 16, 3, 4));
 
         ListBox NewAppList() => new ListBox
@@ -393,7 +417,6 @@ namespace GameSwitcher.Gui
             chkBrightRevert.Text = T("act.brightnessRevert");
             chkGpu.Text = T("act.gpu");
             lblAutoHdr.Text = T("act.autoHdr");
-            lblGraphicsHint.Text = T("graphics.hint");
             loading = true;
             string hdrMode = (cmbAutoHdr.SelectedItem as Item)?.Code ?? "default";
             cmbAutoHdr.Items.Clear();
@@ -429,6 +452,9 @@ namespace GameSwitcher.Gui
             miAddRunning.Text = T("menu.addRunning"); miAddFile.Text = T("menu.addFile");
             miPause1.Text = T("pause.1h"); miPause2.Text = T("pause.2h"); miPauseReboot.Text = T("pause.reboot");
             if (updateTag != null) lnkUpdate.Text = T("update.available", updateTag);
+            var hintFont = new Font(font, 8.25f);
+            foreach (var (label, key, owner) in hints) { label.Text = T(key); label.Font = hintFont; tips.SetToolTip(owner, T(key)); }
+            hintProfile.Visible = settings.ShowHints;
             UpdateSections();
         }
 
@@ -901,6 +927,11 @@ namespace GameSwitcher.Gui
         bool showHdrDisplay;
 
         // Collapsible sections: a collapsed header shows how many of its actions are on
+        bool IsHint(Control c) => hints.Any(h => h.Label == c);
+
+        // Called by the settings window when the explanations are turned on or off
+        public void UpdateHints() { hintProfile.Visible = settings.ShowHints; UpdateSections(); }
+
         void UpdateSections()
         {
             var (a, _) = EditActions;
@@ -910,7 +941,7 @@ namespace GameSwitcher.Gui
                 bool collapsed = settings.Collapsed.Contains(s.Id);
                 int on = s.Actions.Count(x => x == "AutoHdr" ? a["AutoHdr"].Str("Mode") is string m && m != "default" && m.Length > 0 : a.On(x));
                 s.Header.Text = (collapsed ? "▸ " : "▾ ") + T(s.TextKey) + (collapsed && on > 0 ? "   ·   " + T("sec.active", on) : "");
-                foreach (Control c in s.Members) c.Visible = !collapsed && (c != hdrDisplayRow || showHdrDisplay);
+                foreach (Control c in s.Members) c.Visible = !collapsed && (c != hdrDisplayRow || showHdrDisplay) && (settings.ShowHints || !IsHint(c));
             }
             actionsPanel.ResumeLayout();
         }

@@ -44,6 +44,18 @@ namespace GameSwitcher.Gui
         readonly Label lblCouchDisplay = NewLabel(new Padding(23, 9, 8, 3)), lblCouchAudio = NewLabel(new Padding(23, 9, 8, 3)), lblCouchCommand = NewLabel(new Padding(23, 9, 8, 3));
         readonly ComboBox cmbCouchDisplay, cmbCouchAudio;
         readonly TextBox txtCouchCommand = new TextBox { Margin = new Padding(3, 6, 3, 3) };
+        readonly CheckBox chkHints = NewCheck(new Padding(3, 6, 3, 3));
+        // Explanations below the options (key, label, option that also gets it as tooltip)
+        readonly List<(Label Label, string Key, Control Owner)> hints = new List<(Label, string, Control)>();
+        readonly ToolTip tips = new ToolTip { AutoPopDelay = 30000, InitialDelay = 500 };
+
+        Label Hint(string key, Control owner, Label label = null, int indent = 23)
+        {
+            label = label ?? NewHint(new Padding(indent, 0, 3, 4));
+            label.MaximumSize = new Size(column - LogicalToDeviceUnits(30), 0);
+            hints.Add((label, key, owner));
+            return label;
+        }
 
         static CheckBox NewCheck(Padding margin) => new CheckBox { AutoSize = true, Margin = margin };
         static Label NewLabel(Padding margin) => new Label { AutoSize = true, Margin = margin };
@@ -99,15 +111,17 @@ namespace GameSwitcher.Gui
             foreach (var c in new[] { chkAutoDetect, chkTrayHdr, chkNotify, chkSummary, chkRecent, chkBattery, chkCouch }) c.Tag = wide;
             foreach (var c in new[] { chkBatteryStart, chkCouchRevert, chkCouchSkip }) c.Tag = indented;
             chkBatteryWarn.Tag = indented - LogicalToDeviceUnits(80);
-            foreach (var l in new[] { lblHotkeyHint, lblBatteryHint, lblCouchHint }) l.MaximumSize = new Size(indented, 0);
+            chkHints.Tag = wide;
 
-            var left = Column(secGeneral, chkAutostart, Row(lblService, btnService), Row(lblLanguage, cmbLanguage), Row(lblTheme, cmbTheme),
-                chkNotify, chkTrayHdr, chkAutoDetect, Row(chkHotkey, txtHotkey), lblHotkeyHint,
-                Row(chkUpdates, btnCheck), lblUpdate, lnkAbout);
-            var right = Column(secComfort, chkSummary, chkRecent,
-                secBattery, chkBattery, Row(chkBatteryWarn, numThreshold, lblPercent), chkBatteryStart, lblBatteryHint,
-                secCouch, chkCouch, lblCouchHint, Row(lblCouchDisplay, cmbCouchDisplay), Row(lblCouchAudio, cmbCouchAudio),
-                Row(lblCouchCommand, txtCouchCommand), chkCouchRevert, chkCouchSkip);
+            var left = Column(secGeneral, chkAutostart, Hint("hint.autostart", chkAutostart), Row(lblService, btnService),
+                Row(lblLanguage, cmbLanguage), Row(lblTheme, cmbTheme), chkHints,
+                chkNotify, Hint("hint.notifications", chkNotify), chkTrayHdr, chkAutoDetect, Hint("hint.autoDetect", chkAutoDetect),
+                Row(chkHotkey, txtHotkey), Hint("hotkey.hint", chkHotkey, lblHotkeyHint),
+                Row(chkUpdates, btnCheck), Hint("hint.updates", chkUpdates), lblUpdate, lnkAbout);
+            var right = Column(secComfort, chkSummary, Hint("hint.sessionSummary", chkSummary), chkRecent, Hint("hint.recentGames", chkRecent),
+                secBattery, chkBattery, Row(chkBatteryWarn, numThreshold, lblPercent), chkBatteryStart, Hint("battery.hint", chkBattery, lblBatteryHint),
+                secCouch, chkCouch, Hint("couch.hint", chkCouch, lblCouchHint), Row(lblCouchDisplay, cmbCouchDisplay), Row(lblCouchAudio, cmbCouchAudio),
+                Row(lblCouchCommand, txtCouchCommand), Hint("hint.couchCommand", txtCouchCommand), chkCouchRevert, chkCouchSkip);
             var columns = Row(left, right);
             var panel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Padding = new Padding(14, 10, 14, 10) };
             panel.Controls.AddRange(new Control[] { columns, btnClose });
@@ -138,6 +152,7 @@ namespace GameSwitcher.Gui
             chkCouch.Checked = settings.Couch.Enabled;
             chkCouchRevert.Checked = settings.Couch.Revert;
             chkCouchSkip.Checked = settings.Couch.SkipProfile;
+            chkHints.Checked = settings.ShowHints;
             txtCouchCommand.Text = settings.Couch.Command;
             FillCouchAudio();
             loading = false;
@@ -207,6 +222,9 @@ namespace GameSwitcher.Gui
             lblCouchCommand.Text = T("couch.command");
             chkCouchRevert.Text = T("couch.revert");
             chkCouchSkip.Text = T("couch.skipProfile");
+            chkHints.Text = T("opt.hints");
+            var hintFont = new Font(main.Font.FontFamily, 8.25f);
+            foreach (var (label, key, owner) in hints) { label.Text = T(key); label.Font = hintFont; label.Visible = settings.ShowHints; tips.SetToolTip(owner, T(key)); }
             loading = true;
             cmbTheme.Items.Clear();
             foreach (string t in new[] { "system", "light", "dark" })
@@ -321,6 +339,12 @@ namespace GameSwitcher.Gui
             chkCouch.CheckedChanged += (s, e) => Changed(() => settings.Couch.Enabled = chkCouch.Checked);
             chkCouchRevert.CheckedChanged += (s, e) => Changed(() => settings.Couch.Revert = chkCouchRevert.Checked);
             chkCouchSkip.CheckedChanged += (s, e) => Changed(() => settings.Couch.SkipProfile = chkCouchSkip.Checked);
+            chkHints.CheckedChanged += (s, e) => Changed(() =>
+            {
+                settings.ShowHints = chkHints.Checked;
+                foreach (var h in hints) h.Label.Visible = chkHints.Checked;
+                main.UpdateHints();
+            });
             cmbCouchDisplay.SelectedIndexChanged += (s, e) => Changed(() => settings.Couch.Display = ((Item)cmbCouchDisplay.SelectedItem).Code);
             cmbCouchAudio.SelectedIndexChanged += (s, e) => Changed(() =>
             {

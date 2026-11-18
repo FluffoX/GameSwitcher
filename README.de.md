@@ -43,6 +43,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 - **Absturzsicher:** Jede Änderung wird sofort vermerkt und nach einem Absturz oder Stromausfall beim nächsten Start zurückgesetzt.
 - **Deine Änderungen haben Vorrang:** Was du während des Spiels selbst umstellst, wird nicht zurückgesetzt.
 - **12 Sprachen:** English, Deutsch, Español, Français, Italiano, Português, Polski, Türkçe, Русский, 中文（简体）, 日本語, 한국어.
+- **Erklärungen mit Beispielen** unter den Optionen und als Tooltips (in den Einstellungen abschaltbar).
 - **Dark Mode**, wie Windows oder fest eingestellt.
 - **Update-Prüfung** gegen die GitHub-Releases (abschaltbar).
 

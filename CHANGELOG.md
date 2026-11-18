@@ -15,7 +15,7 @@ Everything new is optional and can be turned off in the settings; whatever chang
 - **Session summary:** after a game, a notification shows how long you played.
 - **Statistics:** play time per day or month (last 7 days, 30 days, 12 months), per game. Play time per day is recorded from this version on.
 - While couch mode is on, game profiles leave monitors, resolution, brightness and audio output alone (optional).
-- The settings window is now organized in two columns (general and extras); the actions panel has collapsible sections that show how many actions are on.
+- The settings window is now organized in two columns (general and extras); the actions panel has collapsible sections that show how many actions are on. Every option has a short explanation with an example below it and as a tooltip (can be turned off).
 
 ## 2.4.0
 

@@ -43,6 +43,7 @@ Automatically switches Windows 11 settings as soon as you start a game – and, 
 - **Crash-safe:** every change is recorded right away and reverted on the next start after a crash or power loss.
 - **Your manual changes win:** settings you change yourself during a game are not reset.
 - **12 languages:** English, Deutsch, Español, Français, Italiano, Português, Polski, Türkçe, Русский, 中文（简体）, 日本語, 한국어.
+- **Explanations with examples** below the options and as tooltips (can be turned off in the settings).
 - **Dark mode**, following Windows or set manually.
 - **Update check** against GitHub releases (can be turned off).
 
