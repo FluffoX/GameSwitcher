@@ -953,18 +953,35 @@ namespace GameSwitcher.Gui
             UpdateSections();
         }
 
+
+        // Selection lists of a read-only profile stay enabled (disabled ones are hard to read in the dark
+        // design) but cannot be changed: no drop-down, no keys, no mouse wheel
+        void LockWhileReadOnly(ComboBox c)
+        {
+            c.DropDown += (s, e) => { if (!EditActions.Editable) BeginInvoke((Action)(() => c.DroppedDown = false)); };
+            c.KeyDown += (s, e) => { if (!EditActions.Editable) { e.Handled = true; e.SuppressKeyPress = true; } };
+            c.KeyPress += (s, e) => { if (!EditActions.Editable) e.Handled = true; };
+            c.MouseWheel += (s, e) => { if (!EditActions.Editable && e is HandledMouseEventArgs h) h.Handled = true; };
+        }
         void UpdateActionControls()
         {
             bool editable = EditActions.Editable;
             chkOwnProfile.Visible = editKey.Length > 0;
-            foreach (var b in bindings) b.Control.Enabled = editable;
+            // text fields become read-only instead of disabled: disabled ones are hard to read in the dark design
+            foreach (var b in bindings)
+            {
+                if (b.Control is TextBox t) { t.Enabled = true; t.ReadOnly = !editable; }
+                else if (b.Control is NumericUpDown n) { n.Enabled = true; n.ReadOnly = !editable; }
+                else b.Control.Enabled = editable;
+            }
             foreach (var (master, deps) in dependents)
                 foreach (Control c in deps)
                     // selection fields stay usable (disabled ones render poorly in the dark design)
-                    c.Enabled = editable && (c is ComboBox || c is NumericUpDown || master.Checked);
+                    if (c is ComboBox) c.Enabled = true;   // locked instead while read-only (see LockWhileReadOnly)
+                    else if (!(c is TextBox || c is NumericUpDown)) c.Enabled = editable && master.Checked;
             if (!nightLightSupported) chkNight.Enabled = chkNightRevert.Enabled = false;
             if (!brightnessSupported && !chkBright.Checked) chkBright.Enabled = numBright.Enabled = chkBrightRevert.Enabled = false;
-            cmbAutoHdr.Enabled = editable;
+            cmbAutoHdr.Enabled = true;
             UpdateSections();
         }
 
@@ -1119,10 +1136,11 @@ namespace GameSwitcher.Gui
             foreach (var (control, _, _) in bindings)
             {
                 if (control is CheckBox cb) cb.CheckedChanged += (s, e) => SaveActions();
-                else if (control is NumericUpDown n) n.ValueChanged += (s, e) => SaveActions();
+                // read-only profile: the arrows of a number field would still change it, so the value is put back
+                else if (control is NumericUpDown n) n.ValueChanged += (s, e) => { if (!loading && !EditActions.Editable) ShowActions(); else SaveActions(); };
                 else control.Leave += (s, e) => SaveActions();
             }
-            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower, cmbAutoHdr, cmbHdrDisplay }) c.SelectedIndexChanged += (s, e) => SaveActions();
+            foreach (var c in new[] { cmbAudio, cmbMic, cmbDisplay, cmbPower, cmbAutoHdr, cmbHdrDisplay }) { c.SelectedIndexChanged += (s, e) => SaveActions(); LockWhileReadOnly(c); }
             foreach (var s in sections) { string id = s.Id; s.Header.Click += (o, e) => ToggleSection(id); }
             cmbAudio.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbAudio, Audio.Output, EditActions.Actions["Audio"]); loading = false; };
             cmbMic.DropDown += (s, e) => { loading = true; FillDeviceCombo(cmbMic, Audio.Input, EditActions.Actions["Mic"]); loading = false; };

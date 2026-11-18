@@ -141,7 +141,7 @@ namespace GameSwitcher.Gui
             chkTrayHdr.Checked = settings.TrayHdrToggle;
             chkHotkey.Checked = settings.Hotkey.Length > 0;
             txtHotkey.Text = settings.Hotkey.Length > 0 ? settings.Hotkey : "Ctrl+Alt+G";
-            txtHotkey.Enabled = chkHotkey.Checked;
+            // the hotkey field stays enabled; it only takes keys while the hotkey is turned on
             chkUpdates.Checked = settings.CheckUpdates;
             chkSummary.Checked = settings.SessionSummary;
             chkRecent.Checked = settings.RecentInTray;
@@ -314,12 +314,13 @@ namespace GameSwitcher.Gui
             chkTrayHdr.CheckedChanged += (s, e) => Changed(() => settings.TrayHdrToggle = chkTrayHdr.Checked);
             chkHotkey.CheckedChanged += (s, e) => Changed(() =>
             {
-                txtHotkey.Enabled = chkHotkey.Checked;
+                // the field stays usable (a disabled one is hard to read in the dark design); see KeyDown
                 settings.Hotkey = chkHotkey.Checked ? txtHotkey.Text : "";
             });
             txtHotkey.KeyDown += (s, e) =>
             {
                 e.SuppressKeyPress = true;
+                if (!chkHotkey.Checked) return;
                 string text = FormatHotkey(e);
                 if (text == null) return;
                 txtHotkey.Text = text;

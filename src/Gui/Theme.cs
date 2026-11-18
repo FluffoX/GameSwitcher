@@ -67,7 +67,7 @@ namespace GameSwitcher.Gui
                             else if (c != keepForeColor && !(c.Tag is string tag && tag == "keepColor")) c.ForeColor = text;
                             break;
                     }
-                    if ((c is CheckBox || c is Button) && Hooked.Add(c)) c.Paint += PaintDisabledText;
+                    if ((c is CheckBox || c is Button || c is Label) && Hooked.Add(c)) c.Paint += PaintDisabledText;
                     if (c is ListView lv)
                     {
                         SetDarkControl(lv.Handle, dark, "DarkMode_Explorer", "Explorer");
@@ -98,7 +98,7 @@ namespace GameSwitcher.Gui
 
         static bool IsDarkBack(Color c) => c.GetBrightness() < 0.4f;
 
-        // Windows draws the text of disabled checkboxes and buttons in a fixed dark gray that is hardly
+        // Windows draws the text of disabled checkboxes, buttons and labels in a fixed dark gray that is hardly
         // readable on a dark background: in the dark design it is drawn again in a lighter gray
         static void PaintDisabledText(object sender, PaintEventArgs e)
         {
@@ -115,6 +115,12 @@ namespace GameSwitcher.Gui
                 Size size = TextRenderer.MeasureText(e.Graphics, cb.Text, cb.Font, new Size(cb.Width - left, 0), flags);
                 var textArea = new Rectangle(left, Math.Max(0, (cb.Height - size.Height) / 2), cb.Width - left, size.Height);
                 TextRenderer.DrawText(e.Graphics, cb.Text, cb.Font, textArea, color, flags);
+            }
+            else if (c is Label label)
+            {
+                using (var b = new SolidBrush(label.BackColor)) e.Graphics.FillRectangle(b, label.ClientRectangle);
+                TextRenderer.DrawText(e.Graphics, label.Text, label.Font, label.ClientRectangle, color,
+                    TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             }
             else
             {
