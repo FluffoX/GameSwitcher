@@ -157,7 +157,8 @@ namespace GameSwitcher
                         if (libraryMap.TryGetValue(exe, out GameRef known)) { map[exe] = known; continue; }
                         string name = null;
                         try { name = FileVersionInfo.GetVersionInfo(path).ProductName?.Trim(); } catch { }
-                        map[exe] = new GameRef { Key = "auto:" + path.ToLowerInvariant(), Name = string.IsNullOrEmpty(name) ? exe : name, Exes = new[] { exe } };
+                        // Exes holds file names (as for all other games): names with dots ("game.v2.exe") stay intact
+                        map[exe] = new GameRef { Key = "auto:" + path.ToLowerInvariant(), Name = string.IsNullOrEmpty(name) ? exe : name, Exes = new[] { Path.GetFileName(path) } };
                     }
                 }
             }
@@ -307,14 +308,22 @@ namespace GameSwitcher
                 var paused = Pause.Get();
                 if (paused != null) running.Clear();
 
-                // a game started through GameSwitcher keeps its session while it is still loading
-                if (active != null && running.Any(g => g.Key == active.Key)) launchWait = DateTime.MinValue;
+                // a game started through GameSwitcher keeps its session while it is still loading;
+                // once it runs, its program paths are recorded (they were not known at session start)
+                bool activeRunning = active != null && running.Any(g => g.Key == active.Key);
+                if (activeRunning && launchWait != DateTime.MinValue)
+                {
+                    launchWait = DateTime.MinValue;
+                    if (active != ManualGame) RecordGraphicsPrograms(active);
+                }
                 bool waitingForLaunch = active != null && paused == null && DateTime.Now < launchWait;
 
-                if (running.Count > 0 && active == null) StartSession(running[0]);
-                else if (running.Count > 0 || waitingForLaunch) idleSeconds = 0;
-                else if (active != null)
+                if (active == null) { if (running.Count > 0) StartSession(running[0]); }
+                else if (activeRunning || waitingForLaunch) idleSeconds = 0;
+                else
                 {
+                    // the session's game (or manual mode) is gone, even if another game runs: that one
+                    // gets its own session with its own profile afterwards
                     idleSeconds++;
                     // manual mode and pause end at once; a game gets a grace period for launcher restarts
                     if (active.Key == "manual" || paused != null || idleSeconds >= IdleSecondsBeforeRevert) StopSession();
@@ -340,6 +349,7 @@ namespace GameSwitcher
             if (stillRunning != null)
             {
                 active = stillRunning;
+                sessionStart = DateTime.Now;   // the real start is unknown; without this the summary shows years
                 if (pending.KeepAwake) KeepAwake.Set(true);
             }
             else
@@ -643,9 +653,12 @@ namespace GameSwitcher
                     }
                 }
                 IntPtr h = bmp.GetHicon();
-                return (Icon)Icon.FromHandle(h).Clone();
+                try { using (var temp = Icon.FromHandle(h)) return (Icon)temp.Clone(); }
+                finally { DestroyIcon(h); }   // FromHandle does not take ownership of the handle
             }
         }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
 
         // Shows the HDR state in the icon while the option is on; returns the state (null if not shown)
         bool? UpdateTrayIcon()
@@ -712,6 +725,7 @@ namespace GameSwitcher
         {
             timer.Stop();
             if (active != null) StopSession();
+            try { UpdatePlaytime(new List<GameRef>()); } catch { }   // saves the play time since the last minute
             stopPolling.Set();
             if (couch != null) { Couch.End(config.Couch, couch); couch = null; }
             tray.Visible = false;

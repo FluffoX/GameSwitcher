@@ -36,11 +36,11 @@ namespace GameSwitcher
         public string ScriptEnd { get; set; }
     }
     class DisplayChange { public int Width { get; set; } public int Height { get; set; } public int Hz { get; set; } public int SetWidth { get; set; } public int SetHeight { get; set; } public int SetHz { get; set; } }
-    class SdrChange { public string Key { get; set; } public int Level { get; set; } }
+    class SdrChange { public string Key { get; set; } public int Level { get; set; } public int? Set { get; set; } }
     class BrightnessChange { public string Key { get; set; } public string Name { get; set; } public int Previous { get; set; } public int Set { get; set; } }
     class DeviceChange { public string PreviousId { get; set; } public string PreviousName { get; set; } public string SetId { get; set; } }
     class VolumeChange { public int Previous { get; set; } public int Set { get; set; } }
-    class PowerChange { public string PreviousId { get; set; } public string PreviousName { get; set; } }
+    class PowerChange { public string PreviousId { get; set; } public string PreviousName { get; set; } public string SetId { get; set; } }
 
     // Actions on game start and exit
     static class GameActions
@@ -148,7 +148,7 @@ namespace GameSwitcher
                         int prev = DisplayConfig.GetSdrBrightness(d);
                         if (prev == level) continue;
                         DisplayConfig.SetSdrBrightness(d, level);
-                        c.Sdr.Add(new SdrChange { Key = d.Key, Level = prev });
+                        c.Sdr.Add(new SdrChange { Key = d.Key, Level = prev, Set = DisplayConfig.GetSdrBrightness(d) });
                         Log.Write(T("log.sdrSet", level, d.Name));
                     }
                 });
@@ -211,7 +211,7 @@ namespace GameSwitcher
                     PowerPlan active = PowerPlans.Active();
                     if (active == null || active.Id == planId) return;
                     PowerPlans.Activate(planId);
-                    c.Power = new PowerChange { PreviousId = active.Id, PreviousName = active.Name };
+                    c.Power = new PowerChange { PreviousId = active.Id, PreviousName = active.Name, SetId = planId };
                     Log.Write(T("log.powerSet", cfg["Power"].Str("PlanName")));
                 });
 
@@ -384,7 +384,9 @@ namespace GameSwitcher
             {
                 try
                 {
-                    if (PowerPlans.Active()?.Id == cfg["Power"].Str("PlanId"))
+                    // compared with the plan actually set (the profile may have been edited during the game)
+                    string setId = string.IsNullOrEmpty(c.Power.SetId) ? cfg["Power"].Str("PlanId") : c.Power.SetId;
+                    if (string.Equals(PowerPlans.Active()?.Id, setId, StringComparison.OrdinalIgnoreCase))
                     {
                         PowerPlans.Activate(c.Power.PreviousId);
                         Log.Write(T("log.powerSet", c.Power.PreviousName));
@@ -465,6 +467,8 @@ namespace GameSwitcher
                     {
                         SdrChange saved = c.Sdr.FirstOrDefault(s => s.Key == d.Key);
                         if (saved == null || saved.Level < 0) continue;
+                        // a level changed by hand during the game wins (older state files have no Set)
+                        if (saved.Set is int set && set >= 0 && Math.Abs(DisplayConfig.GetSdrBrightness(d) - set) > 1) continue;
                         DisplayConfig.SetSdrBrightness(d, saved.Level);
                         Log.Write(T("log.sdrSet", saved.Level, d.Name));
                     }

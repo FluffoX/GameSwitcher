@@ -67,13 +67,13 @@ namespace GameSwitcher.Gui
                             else if (c != keepForeColor && !(c.Tag is string tag && tag == "keepColor")) c.ForeColor = text;
                             break;
                     }
-                    if ((c is CheckBox || c is Button || c is Label) && Hooked.Add(c)) c.Paint += PaintDisabledText;
+                    if ((c is CheckBox || c is Button || c is Label) && Hook(c)) c.Paint += PaintDisabledText;
                     if (c is ListView lv)
                     {
                         SetDarkControl(lv.Handle, dark, "DarkMode_Explorer", "Explorer");
                         IntPtr header = SendMessage(lv.Handle, 0x101F, IntPtr.Zero, IntPtr.Zero);   // LVM_GETHEADER
                         SetDarkControl(header, dark, "DarkMode_ItemsView", "ItemsView");
-                        if (Hooked.Add(lv)) DrawHeaderItself(lv);
+                        if (Hook(lv)) DrawHeaderItself(lv);
                     }
                     if (c.Controls.Count > 0) ApplyTo(c);
                 }
@@ -95,6 +95,14 @@ namespace GameSwitcher.Gui
         // Light gray for secondary texts in the dark design (hints, "off", disabled options)
         public static readonly Color DarkGray = Color.FromArgb(160, 160, 160);
         static readonly HashSet<Control> Hooked = new HashSet<Control>();
+
+        // Remembers a control as hooked; closed dialogs leave the set again (otherwise they are never freed)
+        static bool Hook(Control c)
+        {
+            if (!Hooked.Add(c)) return false;
+            c.Disposed += (s, e) => Hooked.Remove(c);
+            return true;
+        }
 
         static bool IsDarkBack(Color c) => c.GetBrightness() < 0.4f;
 

@@ -6,8 +6,12 @@ playtime.json
 watcher.log
 error.log
 games.txt
+couch.json
+graphics.json
+battery.json
+launch.json
 *.lnk
 
-# Build output (GameSwitcher.exe is built by Build.ps1 / Install.ps1 and shipped in the release ZIP)
+# Build output (GameSwitcher.exe is built by Build.ps1 and shipped in the release files)
 GameSwitcher.exe
 dist/

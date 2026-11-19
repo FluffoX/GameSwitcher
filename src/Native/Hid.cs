@@ -51,9 +51,20 @@ namespace GameSwitcher.Native
         const int DIGCF_PRESENT = 2, DIGCF_DEVICEINTERFACE = 0x10, ERROR_IO_PENDING = 997;
         const uint GENERIC_READ = 0x80000000, GENERIC_WRITE = 0x40000000, SHARE_RW = 3, OPEN_EXISTING = 3, FILE_FLAG_OVERLAPPED = 0x40000000;
 
+        // Described interfaces by path: the service enumerates every few seconds, but opening every HID
+        // device each time is the expensive part, so only interfaces that are new get described
+        static Dictionary<string, HidInterface> described = new Dictionary<string, HidInterface>(StringComparer.OrdinalIgnoreCase);
+        static readonly object describedLock = new object();
+
         public static List<HidInterface> Enumerate()
         {
+            lock (describedLock) return EnumerateCached();
+        }
+
+        static List<HidInterface> EnumerateCached()
+        {
             var result = new List<HidInterface>();
+            var current = new Dictionary<string, HidInterface>(StringComparer.OrdinalIgnoreCase);
             HidD_GetHidGuid(out Guid guid);
             IntPtr set = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
             if (set == new IntPtr(-1)) return result;
@@ -69,13 +80,16 @@ namespace GameSwitcher.Native
                     {
                         Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);   // cbSize of SP_DEVICE_INTERFACE_DETAIL_DATA_W
                         if (!SetupDiGetDeviceInterfaceDetail(set, ref data, detail, size, out _, IntPtr.Zero)) continue;
-                        HidInterface info = Describe(Marshal.PtrToStringUni(detail + 4));
-                        if (info != null) result.Add(info);
+                        string path = Marshal.PtrToStringUni(detail + 4);
+                        // failures are not remembered: a device that is still starting up is tried again next time
+                        if (!described.TryGetValue(path, out HidInterface info)) info = Describe(path);
+                        if (info != null && !current.ContainsKey(path)) { current[path] = info; result.Add(info); }
                     }
                     finally { Marshal.FreeHGlobal(detail); }
                 }
             }
             finally { SetupDiDestroyDeviceInfoList(set); }
+            described = current;   // disconnected devices drop out
             return result;
         }
 
@@ -189,8 +203,12 @@ namespace GameSwitcher.Native
             if (HidP_GetValueCaps(type, caps, ref n, pre) == HIDP_STATUS_SUCCESS)
                 for (int i = 0; i < n; i++)
                 {
+                    // the range of the battery value itself, not of another value on the same page
                     int o = i * ValueCapsSize;
                     if (BitConverter.ToUInt16(caps, o) != GenericDeviceControls) continue;
+                    bool isRange = caps[o + 12] != 0;
+                    ushort usageMin = BitConverter.ToUInt16(caps, o + 56), usageMax = isRange ? BitConverter.ToUInt16(caps, o + 58) : usageMin;
+                    if (BatteryStrength < usageMin || BatteryStrength > usageMax) continue;
                     min = BitConverter.ToInt32(caps, o + 40); max = BitConverter.ToInt32(caps, o + 44);
                     break;
                 }

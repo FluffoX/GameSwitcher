@@ -1230,7 +1230,9 @@ namespace GameSwitcher.Gui
         // Checks GitHub for a newer release; label (optional) receives the result text
         public void CheckForUpdates(Label label)
         {
-            UpdateChecker.LatestTag(tag => BeginInvoke((Action)(() =>
+            // the answer arrives on a background thread; the window may have been closed meanwhile
+            UpdateChecker.LatestTag(tag => { try { if (IsHandleCreated && !IsDisposed) BeginInvoke((Action<string>)result, tag); } catch (InvalidOperationException) { } });
+            void result(string tag)
             {
                 Version latest = null;
                 if (tag != null) Version.TryParse(tag.TrimStart('v'), out latest);
@@ -1238,7 +1240,7 @@ namespace GameSwitcher.Gui
                 if (newer) { updateTag = tag; lnkUpdate.Text = T("update.available", tag); lnkUpdate.Visible = true; }
                 if (label != null && !label.IsDisposed)
                     label.Text = latest == null ? T("update.failed") : newer ? T("update.available", tag) : T("update.none", AppInfo.Version);
-            })));
+            }
         }
 
         #endregion
