@@ -72,7 +72,7 @@ Schaltet unter Windows 11 automatisch um, sobald du ein Spiel startest – und a
 
 **Deinstallieren:** Windows-Einstellungen → Apps → GameSwitcher → Deinstallieren. Dabei werden auch Autostart und Startmenü-Eintrag entfernt. Deine Einstellungen in `%AppData%\GameSwitcher` bleiben erhalten; den Ordner einfach löschen, wenn du sie nicht mehr brauchst.
 
-**Portabel:** lieber ohne Installation? `GameSwitcher-<version>.zip` herunterladen, beliebig entpacken und `GameSwitcher.exe` starten – die Frage nach dem Autostart kommt genauso.
+**Portabel:** lieber ohne Installation? `GameSwitcher-<version>.zip` unter [Releases](https://github.com/FluffoX/GameSwitcher/releases/latest) (bei *Assets*) herunterladen, beliebig entpacken und `GameSwitcher.exe` starten – die Frage nach dem Autostart kommt genauso. Die Einstellungen liegen auch hier in `%AppData%\GameSwitcher`. Der Autostart merkt sich den Ordner: Wenn du ihn verschiebst, den Autostart in den Einstellungen einmal aus- und wieder einschalten.
 
 Zu jedem Release gibt es die SHA-256-Prüfsummen der Dateien in `SHA256SUMS.txt`.
 

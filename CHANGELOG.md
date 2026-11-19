@@ -17,6 +17,16 @@ Everything new is optional and can be turned off in the settings; whatever chang
 - While couch mode is on, game profiles leave monitors, resolution, brightness and audio output alone (optional).
 - The settings window is now organized in two columns (general and extras); the actions panel has collapsible sections that show how many actions are on. Every option has a short explanation with an example below it and as a tooltip (can be turned off).
 
+**Fixes**
+
+- Turning off the manual game mode while a game runs now ends it right away; when a game exits while another one runs, that game gets its own session with its own profile.
+- Power plan and SDR brightness are only restored if they are still as set at the game start: a change during the game wins, like for the other actions.
+- The session summary after a recovered session (crash, restart) showed a wrong duration; the play time of the last minute is no longer lost when the service exits.
+- Games found by the automatic detection with dots in the file name: the Windows key block and the graphics settings work.
+- Games started through GameSwitcher get their graphics settings recorded as soon as they run.
+- More accurate battery levels for some HID devices; controller detection in couch mode needs far less CPU time.
+- No error when the update check answers after the window was closed.
+
 ## 2.4.0
 
 - **The window is now C# as well:** GameSwitcher no longer contains any PowerShell. Same window, same features, same settings – it just starts faster and needs less memory.
